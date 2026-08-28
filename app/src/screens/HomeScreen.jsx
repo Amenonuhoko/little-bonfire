@@ -1,9 +1,16 @@
 import { BONE } from '../data';
 
-export default function HomeScreen({ revealed, liveCountLabel, onTap, onDrop, onRead }) {
+export default function HomeScreen({
+  quiet, revealed, skyMode, liveCountLabel, starCountLabel,
+  onWheel, onDown, onMove, onUp, onDrop, onRead,
+}) {
   return (
     <div
-      onClick={onTap}
+      onWheel={onWheel}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
       style={{
         position: 'absolute',
         inset: 0,
@@ -12,12 +19,13 @@ export default function HomeScreen({ revealed, liveCountLabel, onTap, onDrop, on
         justifyContent: 'space-between',
         padding: '66px 24px 44px',
         cursor: 'pointer',
+        touchAction: 'none',
       }}
     >
       <div style={{ height: 2 }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {!revealed && (
+        {quiet && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, animation: 'ddIn .6s ease' }}>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.34)' }}>
               {liveCountLabel}
@@ -62,6 +70,18 @@ export default function HomeScreen({ revealed, liveCountLabel, onTap, onDrop, on
             <div style={{ textAlign: 'center', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.28)' }}>
               scroll up toward what worked
             </div>
+          </div>
+        )}
+
+        {skyMode && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, animation: 'ddIn .5s ease', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.32)' }}>
+            <span>{starCountLabel}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 2, height: 2, borderRadius: '50%', background: 'rgba(230,221,203,.35)' }} />
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(240,228,200,.7)' }} />
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fdf3dc', boxShadow: '0 0 8px rgba(253,243,220,.8)' }} />
+              <span>more spent</span>
+            </span>
           </div>
         )}
       </div>

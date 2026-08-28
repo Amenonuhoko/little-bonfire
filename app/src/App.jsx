@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BUCKETS, INITIAL_USED, totalFor } from './data';
-import FirePlaceholder from './FirePlaceholder';
+import BonfireCanvas from './BonfireCanvas';
 import HomeScreen from './screens/HomeScreen';
 import BucketsScreen from './screens/BucketsScreen';
 import ComposeScreen from './screens/ComposeScreen';
@@ -23,6 +23,7 @@ export default function App() {
   const [mode, setMode] = useState('drop'); // drop | read
   const [bucket, setBucket] = useState('vigil');
   const [revealed, setRevealed] = useState(false);
+  const [sky, setSky] = useState(0); // 0 = at the fire, 1 = up in the sky
   const [picks, setPicks] = useState({});
   const [slot, setSlot] = useState(0);
   const [readIdx, setReadIdx] = useState(0);
@@ -30,6 +31,10 @@ export default function App() {
   const [feedbackTone, setFeedbackTone] = useState('n');
   const [used, setUsed] = useState(INITIAL_USED);
   const [dropped, setDropped] = useState('');
+  const [starCount, setStarCount] = useState(150);
+
+  const fireRef = useRef(null);
+  const dragRef = useRef(null);
 
   const liveTotal = Object.values(used).reduce((a, x) => a + x, 0);
   const liveCountLabel = `${liveTotal} embers live · 5 buckets`;
@@ -38,6 +43,25 @@ export default function App() {
   const tapFire = () => setRevealed((r) => !r);
   const goPickDrop = () => { setMode('drop'); setScreen('pick'); };
   const goPickRead = () => { setMode('read'); setScreen('pick'); setFeedback(''); };
+
+  const onWheel = (e) => {
+    const d = e.deltaY;
+    setSky((v) => Math.max(0, Math.min(1, v + (d < 0 ? 0.34 : -0.34))));
+  };
+  const onDown = (e) => { dragRef.current = { y: e.clientY, sky, moved: 0 }; };
+  const onMove = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dy = d.y - e.clientY;
+    d.moved = Math.max(d.moved, Math.abs(dy));
+    setSky(Math.max(0, Math.min(1, d.sky + dy / 420)));
+  };
+  const onUp = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (d && d.moved < 6) tapFire();
+    else setSky((v) => (v > 0.5 ? 1 : 0));
+  };
 
   const pickBucket = (id) => {
     const total = totalFor(id);
@@ -67,6 +91,8 @@ export default function App() {
     setUsed((u) => ({ ...u, [bucket]: total > 0 ? Math.min(total, u[bucket] + 1) : u[bucket] + 1 }));
     setDropped(composeText(bucket, picks));
     setScreen('confirm');
+    fireRef.current?.flare();
+    fireRef.current?.addEmber(bucket);
   };
 
   const helped = () => {
@@ -75,6 +101,9 @@ export default function App() {
     setFeedback('Spent. It rose to the sky — a slot opened because it worked.');
     setFeedbackTone('g');
     setReadIdx((i) => (i + 1) % BUCKETS[bucket].live.length);
+    fireRef.current?.addStar();
+    fireRef.current?.removeOldestEmber();
+    setStarCount((n) => n + 1);
   };
 
   const notThis = () => {
@@ -102,13 +131,19 @@ export default function App() {
           background: '#0a0b0d',
         }}
       >
-        <FirePlaceholder />
+        <BonfireCanvas ref={fireRef} screen={screen} sky={sky} />
 
         {screen === 'home' && (
           <HomeScreen
-            revealed={revealed}
+            quiet={!revealed && sky < 0.4}
+            revealed={revealed && sky < 0.4}
+            skyMode={sky >= 0.4}
             liveCountLabel={liveCountLabel}
-            onTap={tapFire}
+            starCountLabel={`${starCount} stars spent`}
+            onWheel={onWheel}
+            onDown={onDown}
+            onMove={onMove}
+            onUp={onUp}
             onDrop={goPickDrop}
             onRead={goPickRead}
           />
