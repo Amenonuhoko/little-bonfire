@@ -139,7 +139,14 @@ export default function App() {
           background: '#0a0b0d',
         }}
       >
-        <BonfireCanvas ref={fireRef} screen={screen} sky={sky} revealed={revealed} used={used} />
+        <BonfireCanvas
+          ref={fireRef}
+          screen={screen}
+          sky={sky}
+          revealed={revealed}
+          used={used}
+          activeEmberId={readingEmber?.id ?? null}
+        />
 
         {screen === 'home' && (
           <HomeScreen

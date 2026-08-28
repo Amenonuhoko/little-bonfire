@@ -1,20 +1,26 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { BUCKET_IDS, BUCKETS, INITIAL_USED, totalFor } from './data';
 
+// How close a tap needs to land to an ember to read it — shared by the
+// hit test and the visible tap-area guide so they never disagree.
+const EMBER_TAP_RADIUS = 26;
+
 // Ported from the Claude Design prototype's canvas draw loop — the bonfire,
 // its embers (live messages) and stars (spent/"this helped" messages).
-const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed, used }, ref) {
+const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed, used, activeEmberId }, ref) {
   const canvasElRef = useRef(null);
   const s = useRef(null); // mutable animation state, lives outside React render cycle
   const screenRef = useRef(screen);
   const skyRef = useRef(sky);
   const revealedRef = useRef(revealed);
   const usedRef = useRef(used);
+  const activeEmberIdRef = useRef(activeEmberId);
 
   screenRef.current = screen;
   skyRef.current = sky;
   revealedRef.current = revealed;
   usedRef.current = used;
+  activeEmberIdRef.current = activeEmberId;
 
   useImperativeHandle(ref, () => ({
     flare() { if (s.current) s.current.flare = 1; },
@@ -37,14 +43,14 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     hitTestEmber(px, py) {
       const st = s.current;
       if (!st || !st.w) return null;
-      let best = null, bestD = 26;
+      let best = null, bestD = EMBER_TAP_RADIUS;
       for (const e of st.embers) {
         const x = e.x * st.w + Math.sin(st.t * e.sp + e.ph) * e.ax;
         const y = e.y + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
         const d = Math.hypot(px - x, py - y);
         if (d < bestD) { bestD = d; best = e; }
       }
-      return best ? { name: best.name, color: best.c, text: best.text } : null;
+      return best ? { id: best.id, name: best.name, color: best.c, text: best.text } : null;
     },
   }));
 
@@ -134,7 +140,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     const loop = () => {
       st.raf = requestAnimationFrame(loop);
       st.t += 0.016;
-      draw(st, screenRef.current, skyRef.current, revealedRef.current, usedRef.current);
+      draw(st, screenRef.current, skyRef.current, revealedRef.current, usedRef.current, activeEmberIdRef.current);
     };
     loop();
 
@@ -157,20 +163,25 @@ export default BonfireCanvas;
 
 // Every ember is a real simulated message — none are decorative. `text`
 // lets a just-dropped ember show its own actual content; otherwise one of
-// the bucket's sample messages is cycled in.
+// the bucket's sample messages is cycled in. Each gets a stable id so the
+// canvas can highlight the specific one currently being read.
 let emberSeq = 0;
-function mkEmber(st, id, fresh, text) {
+function mkEmber(st, bucketId, fresh, text) {
   const h = st.h || 860, w = st.w || 402;
   const fy = h * 0.68;
   const ang = Math.random() * 6.2832;
   const r = Math.pow(Math.random(), 0.55);
   const ex = 0.5 + Math.cos(ang) * r * 0.46;
-  const ey = fy - 28 - Math.abs(Math.sin(ang)) * r * h * 0.42 - r * 60;
-  const live = BUCKETS[id].live;
+  // spread from low near the rocks (r≈0) up into the tall dome (r≈1),
+  // instead of only ever floating high above the fire
+  const ey = fy + 22 - Math.abs(Math.sin(ang)) * r * h * 0.48 - r * 58;
+  const live = BUCKETS[bucketId].live;
+  const emberId = emberSeq++;
   return {
-    c: BUCKETS[id].color,
-    name: BUCKETS[id].name,
-    text: text || live[emberSeq++ % live.length].t,
+    id: emberId,
+    c: BUCKETS[bucketId].color,
+    name: BUCKETS[bucketId].name,
+    text: text || live[emberId % live.length].t,
     x: fresh ? 0.5 + (Math.random() - 0.5) * 0.1 : Math.max(0.04, Math.min(0.96, ex)),
     y: fresh ? fy - 110 : ey,
     ax: 6 + Math.random() * 18, ay: 5 + Math.random() * 16,
@@ -256,7 +267,7 @@ function shoreRecede(xFrac, used) {
   return fillAtX(xFrac, used) * SHORE_RECEDE_MAX;
 }
 
-function draw(st, screen, sky, revealed, used) {
+function draw(st, screen, sky, revealed, used, activeEmberId) {
   const { ctx, w, h } = st;
   if (!ctx || !w) return;
   const target = screen === 'home' ? sky : 0;
@@ -629,6 +640,25 @@ function draw(st, screen, sky, revealed, used) {
     ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
     ctx.globalAlpha = Math.max(0, a * (revealed ? 0.22 : 0.14));
     ctx.beginPath(); ctx.arc(x, y, r * 3.8, 0, 6.2832); ctx.fill();
+
+    // a faint dashed guide showing exactly how far a tap can land and
+    // still count — a hint, not a decoration, so it stays quiet
+    if (revealed) {
+      ctx.globalAlpha = Math.max(0, a * 0.16);
+      ctx.strokeStyle = e.c; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.arc(x, y, EMBER_TAP_RADIUS, 0, 6.2832); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // a clear, bright ring on whichever ember is actually being read
+    if (e.id === activeEmberId) {
+      const pulse = 0.6 + 0.4 * Math.sin(st.t * 3);
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = '#fdf3dc'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(x, y, EMBER_TAP_RADIUS * 0.72, 0, 6.2832); ctx.stroke();
+      ctx.globalAlpha = 0.35 * pulse;
+      ctx.beginPath(); ctx.arc(x, y, EMBER_TAP_RADIUS * (0.85 + 0.1 * pulse), 0, 6.2832); ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 
