@@ -641,9 +641,11 @@ export const KINDLING = {
   },
 };
 
-// Deliberately biased test data (increasing disgrace -> grace) so the
-// kindling-fill-driven shoreline/skyline effect is easy to see while testing.
-export const INITIAL_USED = { disgrace: 3, ruin: 8, vigil: 15, resolve: 24, grace: 35 };
+// Starting occupied-slot count per kindling — one real example message each,
+// so the fire opens with exactly 5 embers. Everything beyond this is real:
+// every further drop is a real person, growing both `used` and the fire
+// together, with no separate cap layered on top.
+export const INITIAL_USED = { disgrace: 1, ruin: 1, vigil: 1, resolve: 1, grace: 1 };
 
 export function totalFor(id) {
   return KINDLING[id].total;
