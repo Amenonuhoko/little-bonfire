@@ -482,12 +482,13 @@ function draw(st, screen, sky) {
     const rw = (9.5 + ((k * 13) % 5) * 1.2) * scale, rh = (5.8 + ((k * 7) % 3) * 1.1) * scale;
     const rot = Math.sin(k) * 0.4;
     const angFromFire = Math.atan2(sy0 - fy, sx0 - fx);
-    const shx = sx0 + Math.cos(angFromFire) * rw * 0.55, shy = sy0 + Math.sin(angFromFire) * rh * 0.5 + 1.5;
 
-    // contact shadow, cast away from the fire
+    // contact shadow — always straight down onto the ground, never radial
+    // (a radial offset pushed far-side rocks' shadows above them, making
+    // them look like they were floating instead of resting on the ground)
     ctx.globalAlpha = 0.4 + near * 0.15;
     ctx.fillStyle = 'rgba(6,5,5,0.9)';
-    ctx.beginPath(); ctx.ellipse(shx, shy, rw * 0.95, rh * 0.55, rot, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx0, sy0 + rh * 0.65 + 1.5, rw * 0.95, rh * 0.5, 0, 0, 6.2832); ctx.fill();
     ctx.globalAlpha = 1;
 
     // rock body — a gradient from lit (fire-facing side) to shadowed (outward) side
