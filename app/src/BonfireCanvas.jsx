@@ -161,6 +161,15 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
 
 export default BonfireCanvas;
 
+// How wide the flame's own silhouette is at a given height, with a margin
+// added on top for the embers' sway/drift — not just their spawn point, so
+// resting embers never end up appearing to burn inside the fire itself.
+function flameHalfWidthAt(y, fy) {
+  if (y > fy + 15 || y < fy - 370) return 0;
+  const heightFrac = Math.max(0, Math.min(1, (fy - y) / 360));
+  return 46 * (1 - heightFrac) + 26;
+}
+
 // Every ember is a real simulated message — none are decorative. `text`
 // lets a just-dropped ember show its own actual content; otherwise one of
 // the bucket's sample messages is cycled in. Each gets a stable id so the
@@ -169,12 +178,21 @@ let emberSeq = 0;
 function mkEmber(st, bucketId, fresh, text) {
   const h = st.h || 860, w = st.w || 402;
   const fy = h * 0.68;
-  const ang = Math.random() * 6.2832;
-  const r = Math.pow(Math.random(), 0.55);
-  const ex = 0.5 + Math.cos(ang) * r * 0.46;
-  // spread from low near the rocks (r≈0) up into the tall dome (r≈1),
-  // instead of only ever floating high above the fire
-  const ey = fy + 22 - Math.abs(Math.sin(ang)) * r * h * 0.48 - r * 58;
+  let ex, ey, tries = 0;
+  do {
+    const ang = Math.random() * 6.2832;
+    const r = Math.pow(Math.random(), 0.55);
+    ex = 0.5 + Math.cos(ang) * r * 0.46;
+    // spread from low near the rocks (r≈0) up into the tall dome (r≈1),
+    // instead of only ever floating high above the fire
+    ey = fy + 22 - Math.abs(Math.sin(ang)) * r * h * 0.48 - r * 58;
+    tries++;
+  } while (Math.abs(ex * w - w / 2) < flameHalfWidthAt(ey, fy) && tries < 25);
+  const clearHalf = flameHalfWidthAt(ey, fy);
+  if (Math.abs(ex * w - w / 2) < clearHalf) {
+    // ran out of tries right in the flame's shadow — push it clear outright
+    ex = (ex < 0.5 ? w / 2 - clearHalf : w / 2 + clearHalf) / w;
+  }
   const live = BUCKETS[bucketId].live;
   const emberId = emberSeq++;
   return {
