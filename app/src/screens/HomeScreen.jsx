@@ -74,14 +74,8 @@ export default function HomeScreen({
         )}
 
         {skyMode && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, animation: 'ddIn .5s ease', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.32)' }}>
-            <span>{starCountLabel}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <span style={{ width: 2, height: 2, borderRadius: '50%', background: 'rgba(230,221,203,.35)' }} />
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(240,228,200,.7)' }} />
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fdf3dc', boxShadow: '0 0 8px rgba(253,243,220,.8)' }} />
-              <span>more spent</span>
-            </span>
+          <div style={{ animation: 'ddIn .5s ease', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.32)' }}>
+            {starCountLabel}
           </div>
         )}
       </div>

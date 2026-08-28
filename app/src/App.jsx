@@ -37,7 +37,7 @@ export default function App() {
   const dragRef = useRef(null);
 
   const liveTotal = Object.values(used).reduce((a, x) => a + x, 0);
-  const liveCountLabel = `${liveTotal} embers live · 5 buckets`;
+  const liveCountLabel = `${liveTotal} embers live`;
 
   const goHome = () => { setScreen('home'); setFeedback(''); setRevealed(false); };
   const tapFire = () => setRevealed((r) => !r);
@@ -98,7 +98,7 @@ export default function App() {
   const helped = () => {
     const total = totalFor(bucket);
     if (total > 0) setUsed((u) => ({ ...u, [bucket]: Math.max(0, u[bucket] - 1) }));
-    setFeedback('Spent. It rose to the sky — a slot opened because it worked.');
+    setFeedback('Risen. It joined the sky — a slot opened because it worked.');
     setFeedbackTone('g');
     setReadIdx((i) => (i + 1) % BUCKETS[bucket].live.length);
     fireRef.current?.addStar();
@@ -139,7 +139,7 @@ export default function App() {
             revealed={revealed && sky < 0.4}
             skyMode={sky >= 0.4}
             liveCountLabel={liveCountLabel}
-            starCountLabel={`${starCount} stars spent`}
+            starCountLabel={`${starCount} stars risen`}
             onWheel={onWheel}
             onDown={onDown}
             onMove={onMove}

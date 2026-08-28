@@ -33,6 +33,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
     const st = {
       ctx, w: 0, h: 0, cam: 0, flare: 0, t: 0,
       embers: [], stars: [], tufts: [], sparks: [], smoke: [], noisePattern: null, raf: 0,
+      milkyway: [], fireflies: [], pebbles: [], farTrees: [], nearTrees: [],
     };
     s.current = st;
 
@@ -65,6 +66,47 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
+
+    // a soft diagonal haze of denser starlight — cached so it doesn't reshuffle every frame
+    for (let i = 0; i < 90; i++) {
+      const f = Math.random();
+      const perp = (Math.random() - 0.5) * (1 - Math.abs(f - 0.5) * 0.7);
+      st.milkyway.push({
+        x: 0.08 + f * 0.86 + perp * 0.16,
+        y: -0.62 + f * 1.55 + perp * 0.5,
+        r: 10 + Math.random() * 34,
+        a: 0.02 + Math.random() * 0.05,
+      });
+    }
+    // fireflies drifting low over the ground, away from the fire itself
+    for (let i = 0; i < 9; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      st.fireflies.push({
+        bx: 0.5 + side * (0.28 + Math.random() * 0.34),
+        by: 0.55 + Math.random() * 0.4,
+        r: 5 + Math.random() * 10,
+        sp: 0.15 + Math.random() * 0.2,
+        ph: Math.random() * 6.28,
+        ph2: Math.random() * 6.28,
+      });
+    }
+    // small ground texture — pebbles and fallen leaves
+    for (let i = 0; i < 34; i++) {
+      st.pebbles.push({ x: Math.random(), y: Math.random(), r: 0.8 + Math.random() * 1.8, w: Math.random() < 0.4 });
+    }
+    // distant pine silhouettes lining the far shore
+    for (let i = 0; i < 22; i++) {
+      const x = i / 21 + (Math.random() - 0.5) * 0.03;
+      st.farTrees.push({ x, hh: 0.5 + Math.random() * 0.9, w: 0.55 + Math.random() * 0.5 });
+    }
+    // a couple of tall pines framing the campsite right at each screen edge
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 4; i++) {
+        const frac = 0.02 + i * 0.05 + Math.random() * 0.025;
+        const x = side < 0 ? frac : 1 - frac;
+        st.nearTrees.push({ x, hh: 0.6 + Math.random() * 0.5, depth: i });
+      }
+    }
 
     const loop = () => {
       st.raf = requestAnimationFrame(loop);
@@ -161,10 +203,49 @@ function draw(st, screen, sky) {
 
   ctx.clearRect(0, 0, w, h);
   const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, '#04050a'); g.addColorStop(0.6, '#080a10'); g.addColorStop(1, '#0a0c11');
+  g.addColorStop(0, '#05050d'); g.addColorStop(0.32, '#0a0a16');
+  g.addColorStop(0.62, '#100e14'); g.addColorStop(0.82, '#161010');
+  g.addColorStop(1, '#0a0c11');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
   ctx.save(); ctx.translate(0, camY);
+
+  // milky way: a soft cached haze of denser starlight, behind everything
+  ctx.globalCompositeOperation = 'lighter';
+  for (const m of st.milkyway) {
+    const mx = m.x * w, my = -h * 0.5 + m.y * h * 1.4;
+    const tw = 0.75 + 0.25 * Math.sin(st.t * 0.15 + m.x * 20);
+    const mg = ctx.createRadialGradient(mx, my, 0, mx, my, m.r);
+    mg.addColorStop(0, `rgba(196,190,225,${(m.a * tw).toFixed(3)})`);
+    mg.addColorStop(1, 'rgba(196,190,225,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath(); ctx.arc(mx, my, m.r, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // the moon — sits low over the campsite; fades out as the camera climbs
+  // toward the far sky so it never lingers over the star-count footer
+  const moonA = Math.max(0, 1 - sky * 2.2);
+  if (moonA > 0.01) {
+    const mx = w * 0.76, my = h * 0.1;
+    ctx.globalAlpha = moonA;
+    const halo = ctx.createRadialGradient(mx, my, 0, mx, my, 70);
+    halo.addColorStop(0, 'rgba(226,228,238,0.16)');
+    halo.addColorStop(1, 'rgba(226,228,238,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(mx, my, 70, 0, 6.2832); ctx.fill();
+    const body = ctx.createRadialGradient(mx - 5, my - 5, 1, mx, my, 17);
+    body.addColorStop(0, '#f6f4ee');
+    body.addColorStop(0.6, '#dcdce4');
+    body.addColorStop(1, '#b7bccb');
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(mx, my, 17, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = moonA * 0.16; ctx.fillStyle = '#9298ab';
+    ctx.beginPath(); ctx.arc(mx - 6, my + 4, 4.2, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + 5, my - 6, 2.6, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + 2, my + 7, 2, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   // stars: spent messages. brightness = how many people spent them
   for (const st_ of st.stars) {
@@ -190,13 +271,27 @@ function draw(st, screen, sky) {
   }
   ctx.globalAlpha = 1;
 
-  // far shore
-  ctx.fillStyle = '#080b10';
-  ctx.beginPath(); ctx.moveTo(-10, waterTop + 3);
-  for (let x = -10; x <= w + 10; x += 20) {
-    ctx.lineTo(x, waterTop - 6 - Math.sin(x * 0.009 + 1.2) * 7 - Math.sin(x * 0.027) * 3);
+  // distant mountains — a soft, low-contrast ridge well behind the tree line
+  ctx.fillStyle = '#0d1018';
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
+  for (let x = -10; x <= w + 10; x += 24) {
+    ctx.lineTo(x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10);
   }
-  ctx.lineTo(w + 10, waterTop + 3); ctx.closePath(); ctx.fill();
+  ctx.lineTo(w + 10, waterTop + 6); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // far shore — a tree line of small pine silhouettes
+  ctx.fillStyle = '#080b10';
+  ctx.beginPath(); ctx.moveTo(-10, waterTop + 4);
+  for (const ft of st.farTrees) {
+    const x = ft.x * w, ph = waterTop - 3;
+    const th = 10 + ft.hh * 16, tw2 = 7 * ft.w;
+    ctx.lineTo(x - tw2, ph);
+    ctx.lineTo(x, ph - th);
+    ctx.lineTo(x + tw2, ph);
+  }
+  ctx.lineTo(w + 10, waterTop + 4); ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = 'rgba(190,140,86,0.25)';
   ctx.fillRect(-10, waterTop - 1, w + 20, 1.2);
@@ -274,12 +369,54 @@ function draw(st, screen, sky) {
   lit.addColorStop(1, 'rgba(120,80,40,0)');
   ctx.fillStyle = lit; ctx.fillRect(-10, bank - 4, w + 20, h - bank + 90);
   ctx.restore();
+
+  // tall pines framing the campsite at either edge — closer trees are bigger and darker
+  for (const tr of st.nearTrees) {
+    const tx = tr.x * w;
+    if (tx < -80 || tx > w + 80) continue;
+    const scale = 1.5 - tr.depth * 0.24;
+    const baseY = bank + 22;
+    const th = 150 * tr.hh * scale, tw2 = 17 * scale;
+    const sway = Math.sin(st.t * 0.35 + tr.x * 9) * 2 * scale;
+    const shade = Math.max(0, 1 - Math.abs(tx - fx) / (w * 0.9));
+    ctx.fillStyle = `rgba(${10 + shade * 26},${8 + shade * 16},${7 + shade * 9},${Math.max(0.4, 0.95 - tr.depth * 0.13)})`;
+    for (let tier = 0; tier < 3; tier++) {
+      const ty = baseY - tier * th * 0.32;
+      const tierW = tw2 * (1 - tier * 0.22);
+      const tierH = th * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(tx + sway * (tier + 1) * 0.3 - tierW, ty);
+      ctx.lineTo(tx + sway * (tier + 1) * 0.5, ty - tierH);
+      ctx.lineTo(tx + sway * (tier + 1) * 0.3 + tierW, ty);
+      ctx.closePath(); ctx.fill();
+    }
+    if (shade > 0.08) {
+      ctx.globalAlpha = shade * 0.2;
+      ctx.fillStyle = 'rgba(224,132,58,1)';
+      ctx.beginPath();
+      ctx.moveTo(tx + (tx < fx ? tw2 * 0.5 : -tw2 * 0.5), baseY);
+      ctx.lineTo(tx + sway * 1.5, baseY - th * 0.9);
+      ctx.lineTo(tx + (tx < fx ? tw2 * 0.2 : -tw2 * 0.2), baseY);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
   for (const tuft of st.tufts) {
     const gy = bank + 4 + tuft.y * (h - bank) * 0.98;
     const d = 1 - Math.min(1, Math.abs(tuft.x * w - fx) / (w * 0.7));
     ctx.strokeStyle = 'rgba(196,134,72,' + (0.05 + 0.2 * d) + ')'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(tuft.x * w, gy); ctx.lineTo(tuft.x * w + tuft.l, gy - tuft.h); ctx.stroke();
   }
+  // small stones and fallen leaves scattered near the fire
+  for (const pb of st.pebbles) {
+    const px = pb.x * w, py = bank + 6 + pb.y * (h - bank) * 0.9;
+    const d = 1 - Math.min(1, Math.abs(px - fx) / (w * 0.6));
+    ctx.globalAlpha = 0.25 + 0.35 * d;
+    ctx.fillStyle = pb.w ? 'rgba(190,110,60,0.5)' : 'rgba(70,64,58,0.8)';
+    ctx.beginPath(); ctx.ellipse(px, py, pb.r * 1.6, pb.r, 0, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
   // rocks ringing the fire pit
   for (let k = 0; k < 11; k++) {
     const a2 = (k / 11) * 6.2832 + 0.35;
@@ -295,6 +432,21 @@ function draw(st, screen, sky) {
     ctx.fillStyle = 'rgba(226,132,52,' + (0.06 + 0.3 * face).toFixed(3) + ')';
     ctx.fill();
   }
+
+  // fireflies drifting low over the ground, well away from the fire itself
+  ctx.globalCompositeOperation = 'lighter';
+  for (const fl of st.fireflies) {
+    const fx2 = fl.bx * w + Math.sin(st.t * fl.sp + fl.ph) * fl.r * 2.4;
+    const fy2 = fl.by * h + Math.cos(st.t * fl.sp * 0.7 + fl.ph2) * fl.r;
+    const pulse = 0.3 + 0.7 * Math.max(0, Math.sin(st.t * (0.8 + fl.sp) + fl.ph));
+    ctx.globalAlpha = pulse * 0.55;
+    ctx.fillStyle = '#d9e07a';
+    ctx.beginPath(); ctx.arc(fx2, fy2, 1.1, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = pulse * 0.14;
+    ctx.beginPath(); ctx.arc(fx2, fy2, 4.2, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
 
   // embers: live messages, floating in place
   for (const e of st.embers) {
@@ -430,4 +582,12 @@ function draw(st, screen, sky) {
     ctx.fillRect(0, 0, w, h);
     ctx.globalAlpha = 1;
   }
+
+  // vignette: frames the scene and keeps the eye on the fire
+  const vg = ctx.createRadialGradient(w / 2, h * 0.62, h * 0.25, w / 2, h * 0.62, h * 0.78);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(0.75, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
 }
