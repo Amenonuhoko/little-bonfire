@@ -86,10 +86,11 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
       const likes = Math.round(6 + Math.pow(Math.random(), 2.6) * 240);
       st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28 });
     }
-    // one ember per actually-simulated message — every ember is readable,
-    // there's nothing decorative floating out there without a real message
+    // default to a light scattering of embers on load — one per kindling —
+    // rather than one per actually-simulated message, so the fire doesn't
+    // open crowded. Every ember is still readable, nothing decorative.
     for (const id of KINDLING_IDS) {
-      for (let i = 0; i < INITIAL_USED[id]; i++) st.embers.push(mkEmber(st, id, false));
+      st.embers.push(mkEmber(st, id, false));
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
