@@ -138,7 +138,7 @@ export default function App() {
           background: '#0a0b0d',
         }}
       >
-        <BonfireCanvas ref={fireRef} screen={screen} sky={sky} revealed={revealed} />
+        <BonfireCanvas ref={fireRef} screen={screen} sky={sky} revealed={revealed} used={used} />
 
         {screen === 'home' && (
           <HomeScreen

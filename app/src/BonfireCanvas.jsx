@@ -3,16 +3,18 @@ import { BUCKET_IDS, BUCKETS, INITIAL_USED, totalFor } from './data';
 
 // Ported from the Claude Design prototype's canvas draw loop — the bonfire,
 // its embers (live messages) and stars (spent/"this helped" messages).
-const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed }, ref) {
+const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed, used }, ref) {
   const canvasElRef = useRef(null);
   const s = useRef(null); // mutable animation state, lives outside React render cycle
   const screenRef = useRef(screen);
   const skyRef = useRef(sky);
   const revealedRef = useRef(revealed);
+  const usedRef = useRef(used);
 
   screenRef.current = screen;
   skyRef.current = sky;
   revealedRef.current = revealed;
+  usedRef.current = used;
 
   useImperativeHandle(ref, () => ({
     flare() { if (s.current) s.current.flare = 1; },
@@ -134,7 +136,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed 
     const loop = () => {
       st.raf = requestAnimationFrame(loop);
       st.t += 0.016;
-      draw(st, screenRef.current, skyRef.current, revealedRef.current);
+      draw(st, screenRef.current, skyRef.current, revealedRef.current, usedRef.current);
     };
     loop();
 
@@ -228,7 +230,42 @@ function makeNoisePattern(ctx) {
   return ctx.createPattern(n, 'repeat');
 }
 
-function draw(st, screen, sky, revealed) {
+// How full a bucket reads, 0..1, for the shoreline/skyline mapping below.
+// Grace has no cap, so it's judged against a soft reference instead.
+function bucketFillFrac(id, used) {
+  if (!used) return 0.5;
+  const total = totalFor(id);
+  const cap = total > 0 ? total : 50;
+  return Math.max(0, Math.min(1, (used[id] || 0) / cap));
+}
+
+// Fill at an arbitrary x fraction (0..1), linearly interpolated between the
+// five buckets' center points (in their fixed disgrace->grace order).
+function fillAtX(xFrac, used) {
+  const n = BUCKET_IDS.length;
+  const centers = BUCKET_IDS.map((_, i) => (i + 0.5) / n);
+  const fills = BUCKET_IDS.map((id) => bucketFillFrac(id, used));
+  if (xFrac <= centers[0]) return fills[0];
+  if (xFrac >= centers[n - 1]) return fills[n - 1];
+  for (let i = 0; i < n - 1; i++) {
+    if (xFrac >= centers[i] && xFrac <= centers[i + 1]) {
+      const t = (xFrac - centers[i]) / (centers[i + 1] - centers[i]);
+      return fills[i] + (fills[i + 1] - fills[i]) * t;
+    }
+  }
+  return 0.5;
+}
+
+// The fuller a bucket, the further its stretch of shoreline recedes from
+// the camera. Only ever recedes (moves up) from the baseline — it never
+// dips below it, so the tree line can't end up looking like it's standing
+// in the water.
+const SHORE_RECEDE_MAX = 10;
+function shoreRecede(xFrac, used) {
+  return fillAtX(xFrac, used) * SHORE_RECEDE_MAX;
+}
+
+function draw(st, screen, sky, revealed, used) {
   const { ctx, w, h } = st;
   if (!ctx || !w) return;
   const target = screen === 'home' ? sky : 0;
@@ -286,10 +323,13 @@ function draw(st, screen, sky, revealed) {
     ctx.globalAlpha = 1;
   }
 
-  // stars: spent messages. brightness = how many people spent them
+  // stars: spent messages. brightness = how many people spent them, nudged
+  // a little brighter over whichever bucket's zone is currently fullest —
+  // the skyline echoing the same state as the shoreline below it
   for (const st_ of st.stars) {
     const y = -h * 0.95 + st_.y * (waterTop + h * 0.95);
-    const b = st_.b;
+    const skyBoost = 0.84 + 0.32 * fillAtX(st_.x, used);
+    const b = Math.min(1, st_.b * skyBoost);
     const tw = 0.72 + 0.28 * Math.sin(st.t * (0.5 + b) + st_.tw);
     ctx.globalAlpha = (0.13 + 0.72 * b * b) * tw;
     ctx.fillStyle = b > 0.62 ? '#fdf3dc' : b > 0.3 ? '#e8dcc4' : '#b9b2a3';
@@ -316,7 +356,8 @@ function draw(st, screen, sky, revealed) {
   ctx.filter = 'blur(3px)';
   const mtnPts = [];
   for (let x = -10; x <= w + 10; x += 24) {
-    mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10]);
+    const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), used);
+    mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10 - recede]);
   }
   const mtnTopY = Math.min(...mtnPts.map((p) => p[1]));
   const mg2 = ctx.createLinearGradient(0, mtnTopY, 0, waterTop + 6);
@@ -335,7 +376,7 @@ function draw(st, screen, sky, revealed) {
   ctx.fillStyle = '#080b10';
   ctx.beginPath(); ctx.moveTo(-10, waterTop + 4);
   for (const ft of st.farTrees) {
-    const x = ft.x * w, ph = waterTop - 3;
+    const x = ft.x * w, ph = waterTop - 3 - shoreRecede(ft.x, used);
     const th = 10 + ft.hh * 16, tw2 = 7 * ft.w;
     ctx.lineTo(x - tw2, ph);
     ctx.lineTo(x, ph - th);
