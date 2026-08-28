@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KINDLING, INITIAL_USED, totalFor } from './data';
+import { KINDLING, KINDLING_IDS, INITIAL_USED, totalFor } from './data';
 import BonfireCanvas from './BonfireCanvas';
 import HomeScreen from './screens/HomeScreen';
 import KindlingScreen from './screens/KindlingScreen';
@@ -37,12 +37,15 @@ export default function App() {
   const [starCount, setStarCount] = useState(150);
 
   const [readingEmber, setReadingEmber] = useState(null);
+  // mirrors the count of embers actually seeded on the canvas — kept in
+  // sync with fireRef's addEmber/removeOldestEmber calls, not the (much
+  // larger) `used` totals, so the label matches what's floating
+  const [emberCount, setEmberCount] = useState(KINDLING_IDS.length);
 
   const fireRef = useRef(null);
   const dragRef = useRef(null);
 
-  const liveTotal = Object.values(used).reduce((a, x) => a + x, 0);
-  const liveCountLabel = `${liveTotal} embers live`;
+  const liveCountLabel = `${emberCount} embers live`;
 
   const goHome = () => { setScreen('home'); setFeedback(''); setRevealed(false); };
   const tapFire = () => setRevealed((r) => !r);
@@ -112,6 +115,7 @@ export default function App() {
     setScreen('confirm');
     fireRef.current?.flare();
     fireRef.current?.addEmber(kindling, text);
+    setEmberCount((n) => n + 1);
   };
 
   const helped = () => {
@@ -123,6 +127,7 @@ export default function App() {
     fireRef.current?.addStar();
     fireRef.current?.removeOldestEmber();
     setStarCount((n) => n + 1);
+    setEmberCount((n) => Math.max(0, n - 1));
   };
 
   const notThis = () => {
