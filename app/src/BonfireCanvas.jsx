@@ -471,19 +471,40 @@ function draw(st, screen, sky) {
     ctx.beginPath(); ctx.ellipse(px, py, pb.r * 1.6, pb.r, 0, 0, 6.2832); ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // rocks ringing the fire pit
+  // rocks ringing the fire pit — shaded and shadowed like rounded stones,
+  // with rocks lower in the ring (nearer the "camera") reading bigger
   for (let k = 0; k < 11; k++) {
     const a2 = (k / 11) * 6.2832 + 0.35;
     const rx0 = 66 + ((k * 29) % 13), ry0 = 21 + ((k * 17) % 7);
+    const near = (Math.sin(a2) + 1) / 2; // 0 = far side of ring, 1 = near side
+    const scale = 0.82 + near * 0.42;
     const sx0 = fx + Math.cos(a2) * rx0, sy0 = fy + 16 + Math.sin(a2) * ry0;
-    const rw = 9.5 + ((k * 13) % 5) * 1.2, rh = 5.8 + ((k * 7) % 3) * 1.1;
-    ctx.beginPath();
-    ctx.ellipse(sx0, sy0, rw, rh, Math.sin(k) * 0.4, 0, 6.2832);
-    ctx.fillStyle = 'rgba(30,27,25,0.97)'; ctx.fill();
+    const rw = (9.5 + ((k * 13) % 5) * 1.2) * scale, rh = (5.8 + ((k * 7) % 3) * 1.1) * scale;
+    const rot = Math.sin(k) * 0.4;
+    const angFromFire = Math.atan2(sy0 - fy, sx0 - fx);
+    const shx = sx0 + Math.cos(angFromFire) * rw * 0.55, shy = sy0 + Math.sin(angFromFire) * rh * 0.5 + 1.5;
+
+    // contact shadow, cast away from the fire
+    ctx.globalAlpha = 0.4 + near * 0.15;
+    ctx.fillStyle = 'rgba(6,5,5,0.9)';
+    ctx.beginPath(); ctx.ellipse(shx, shy, rw * 0.95, rh * 0.55, rot, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // rock body — a gradient from lit (fire-facing side) to shadowed (outward) side
     const face = 1 - Math.min(1, Math.hypot(sx0 - fx, (sy0 - fy) * 1.8) / 110);
+    const litDx = -Math.cos(angFromFire), litDy = -Math.sin(angFromFire); // points back toward the fire
+    const lit = ctx.createLinearGradient(sx0 - litDx * rw, sy0 - litDy * rh, sx0 + litDx * rw, sy0 + litDy * rh);
+    lit.addColorStop(0, `rgba(${64 + face * 90},${44 + face * 52},${30 + face * 22},1)`);
+    lit.addColorStop(0.55, 'rgba(28,25,23,1)');
+    lit.addColorStop(1, 'rgba(14,12,11,1)');
     ctx.beginPath();
-    ctx.ellipse(sx0 + (sx0 < fx ? 1.6 : -1.6), sy0 - 1.4, rw * 0.62, rh * 0.5, Math.sin(k) * 0.4, 0, 6.2832);
-    ctx.fillStyle = 'rgba(226,132,52,' + (0.06 + 0.3 * face).toFixed(3) + ')';
+    ctx.ellipse(sx0, sy0, rw, rh, rot, 0, 6.2832);
+    ctx.fillStyle = lit; ctx.fill();
+
+    // a soft rounded highlight where the firelight catches the near side
+    ctx.beginPath();
+    ctx.ellipse(sx0 + litDx * rw * 0.4, sy0 + litDy * rh * 0.4 - rh * 0.25, rw * 0.5, rh * 0.32, rot, 0, 6.2832);
+    ctx.fillStyle = `rgba(240,168,90,${(0.05 + 0.28 * face).toFixed(3)})`;
     ctx.fill();
   }
 
@@ -532,12 +553,40 @@ function draw(st, screen, sky) {
   rg.addColorStop(1, 'rgba(140,64,18,0)');
   ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(fx, fy - 30, R, 0, 6.2832); ctx.fill();
 
-  // ash pile and half-burnt sticks
-  ctx.fillStyle = 'rgba(36,32,29,0.95)';
+  // ash pile and half-burnt logs, built up as a rounded mound with real shadow
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = 'rgba(5,4,4,0.9)';
+  ctx.beginPath(); ctx.ellipse(fx, fy + 19, 54, 11, 0, 0, 6.2832); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  const ashG = ctx.createRadialGradient(fx, fy + 10, 3, fx, fy + 16, 46);
+  ashG.addColorStop(0, 'rgba(74,64,56,0.95)');
+  ashG.addColorStop(0.5, 'rgba(46,40,36,0.95)');
+  ashG.addColorStop(1, 'rgba(26,23,21,0.9)');
+  ctx.fillStyle = ashG;
   ctx.beginPath(); ctx.ellipse(fx, fy + 15, 44, 10, 0, 0, 6.2832); ctx.fill();
-  ctx.strokeStyle = 'rgba(22,19,17,0.96)'; ctx.lineWidth = 4.5; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(fx - 33, fy + 17); ctx.lineTo(fx + 17, fy + 7); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(fx + 31, fy + 17); ctx.lineTo(fx - 15, fy + 6); ctx.stroke();
+
+  // two half-burnt logs, drawn as shaded capsules for a rounded, lying-down volume
+  for (const log of [
+    { x1: fx - 33, y1: fy + 17, x2: fx + 18, y2: fy + 6, w: 5.4 },
+    { x1: fx + 31, y1: fy + 17, x2: fx - 16, y2: fy + 6, w: 5 },
+  ]) {
+    const dx = log.x2 - log.x1, dy = log.y2 - log.y1, len = Math.hypot(dx, dy);
+    const nx = -dy / len, ny = dx / len;
+    const lg = ctx.createLinearGradient(log.x1 + nx * log.w, log.y1 + ny * log.w, log.x1 - nx * log.w, log.y1 - ny * log.w);
+    lg.addColorStop(0, 'rgba(58,42,34,0.97)');
+    lg.addColorStop(0.45, 'rgba(30,24,21,0.97)');
+    lg.addColorStop(1, 'rgba(12,10,9,0.97)');
+    ctx.strokeStyle = lg; ctx.lineWidth = log.w; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(log.x1, log.y1); ctx.lineTo(log.x2, log.y2); ctx.stroke();
+    // a thin glowing charred edge along the top of the log, toward the fire
+    ctx.strokeStyle = 'rgba(255,120,40,0.35)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(log.x1 + nx * log.w * 0.6, log.y1 + ny * log.w * 0.6);
+    ctx.lineTo(log.x2 + nx * log.w * 0.6, log.y2 + ny * log.w * 0.6);
+    ctx.stroke();
+  }
+
   for (let k = 0; k < 8; k++) {
     const cx = fx + Math.sin(k * 2.7) * 30, cy = fy + 9 + Math.cos(k * 1.9) * 4;
     ctx.globalAlpha = 0.2 + 0.35 * Math.abs(Math.sin(st.t * 1.8 + k));
