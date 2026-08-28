@@ -1,0 +1,25 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: #07080a;
+  font-family: Archivo, system-ui, sans-serif;
+  overscroll-behavior: none;
+}
+a { color: #c2a173; }
+a:hover { color: #dcbd8d; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+@keyframes ddIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ddPulse {
+  0%, 100% { opacity: .45; }
+  50% { opacity: .9; }
+}
+@keyframes ddGlow {
+  0%, 100% { opacity: .55; transform: scale(1); }
+  50% { opacity: .85; transform: scale(1.04); }
+}
