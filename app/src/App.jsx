@@ -114,8 +114,14 @@ export default function App() {
     setDropped(text);
     setScreen('confirm');
     fireRef.current?.flare();
+    // keep the fire at a hard cap of 5 embers — cull the oldest to make
+    // room instead of letting the scene get more crowded with every drop
+    if (emberCount >= KINDLING_IDS.length) {
+      fireRef.current?.removeOldestEmber();
+    } else {
+      setEmberCount((n) => n + 1);
+    }
     fireRef.current?.addEmber(kindling, text);
-    setEmberCount((n) => n + 1);
   };
 
   const helped = () => {
