@@ -1,7 +1,7 @@
-import { BUCKETS } from '../data';
+import { KINDLING } from '../data';
 
-export default function ComposeScreen({ bucketId, templateIdx, onSelectTemplate, picks, slot, onBack, onSelectSlot, onChoose, onDrop }) {
-  const b = BUCKETS[bucketId];
+export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplate, picks, slot, onBack, onSelectSlot, onChoose, onDrop }) {
+  const b = KINDLING[kindlingId];
   const tmpl = b.templates[templateIdx];
   const slotIdxs = tmpl.parts.map((p, i) => (p.opts ? i : -1)).filter((i) => i >= 0);
   const allPicked = slotIdxs.every((i) => picks[i] !== undefined);
@@ -12,13 +12,13 @@ export default function ComposeScreen({ bucketId, templateIdx, onSelectTemplate,
       <div style={{ padding: '0 24px 14px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div onClick={onBack} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer' }}>
-            ← buckets
+            ← kindling
           </div>
           <div style={{ fontFamily: "'Young Serif',serif", fontSize: 24, color: b.color }}>{b.name}</div>
         </div>
       </div>
 
-      {/* the template wheel — scroll through this bucket's flavors before filling one in */}
+      {/* the template wheel — scroll through this kindling's flavors before filling one in */}
       <div style={{ padding: '0 0 12px' }}>
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 24px 4px', WebkitOverflowScrolling: 'touch' }}>
           {b.templates.map((t, i) => {

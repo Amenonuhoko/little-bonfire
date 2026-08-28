@@ -1,7 +1,7 @@
-import { BUCKETS } from '../data';
+import { KINDLING } from '../data';
 
-export default function ConfirmScreen({ bucketId, droppedText, onDismiss }) {
-  const b = BUCKETS[bucketId];
+export default function ConfirmScreen({ kindlingId, droppedText, onDismiss }) {
+  const b = KINDLING[kindlingId];
   return (
     <div
       onClick={onDismiss}

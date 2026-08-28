@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { BUCKET_IDS, BUCKETS, INITIAL_USED, totalFor } from './data';
+import { KINDLING_IDS, KINDLING, INITIAL_USED, totalFor } from './data';
 
 // How close a tap needs to land to an ember to read it — shared by the
 // hit test and the visible tap-area guide so they never disagree.
@@ -26,9 +26,9 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     flare() { if (s.current) s.current.flare = 1; },
     // text is the message that was actually just dropped, so the new ember
     // is readable with its own real content, not a generic placeholder
-    addEmber(bucketId, text) {
+    addEmber(kindlingId, text) {
       if (!s.current) return;
-      s.current.embers.push(mkEmber(s.current, bucketId, true, text));
+      s.current.embers.push(mkEmber(s.current, kindlingId, true, text));
     },
     removeOldestEmber() {
       if (s.current && s.current.embers.length) s.current.embers.shift();
@@ -88,7 +88,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     }
     // one ember per actually-simulated message — every ember is readable,
     // there's nothing decorative floating out there without a real message
-    for (const id of BUCKET_IDS) {
+    for (const id of KINDLING_IDS) {
       for (let i = 0; i < INITIAL_USED[id]; i++) st.embers.push(mkEmber(st, id, false));
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
@@ -172,10 +172,10 @@ function flameHalfWidthAt(y, fy) {
 
 // Every ember is a real simulated message — none are decorative. `text`
 // lets a just-dropped ember show its own actual content; otherwise one of
-// the bucket's sample messages is cycled in. Each gets a stable id so the
+// the kindling's sample messages is cycled in. Each gets a stable id so the
 // canvas can highlight the specific one currently being read.
 let emberSeq = 0;
-function mkEmber(st, bucketId, fresh, text) {
+function mkEmber(st, kindlingId, fresh, text) {
   const h = st.h || 860, w = st.w || 402;
   const fy = h * 0.68;
   let ex, ey, tries = 0;
@@ -193,12 +193,12 @@ function mkEmber(st, bucketId, fresh, text) {
     // ran out of tries right in the flame's shadow — push it clear outright
     ex = (ex < 0.5 ? w / 2 - clearHalf : w / 2 + clearHalf) / w;
   }
-  const live = BUCKETS[bucketId].live;
+  const live = KINDLING[kindlingId].live;
   const emberId = emberSeq++;
   return {
     id: emberId,
-    c: BUCKETS[bucketId].color,
-    name: BUCKETS[bucketId].name,
+    c: KINDLING[kindlingId].color,
+    name: KINDLING[kindlingId].name,
     text: text || live[emberId % live.length].t,
     x: fresh ? 0.5 + (Math.random() - 0.5) * 0.1 : Math.max(0.04, Math.min(0.96, ex)),
     y: fresh ? fy - 110 : ey,
@@ -250,9 +250,9 @@ function makeNoisePattern(ctx) {
   return ctx.createPattern(n, 'repeat');
 }
 
-// How full a bucket reads, 0..1, for the shoreline/skyline mapping below.
+// How full a kindling reads, 0..1, for the shoreline/skyline mapping below.
 // Grace has no cap, so it's judged against a soft reference instead.
-function bucketFillFrac(id, used) {
+function kindlingFillFrac(id, used) {
   if (!used) return 0.5;
   const total = totalFor(id);
   const cap = total > 0 ? total : 50;
@@ -260,11 +260,11 @@ function bucketFillFrac(id, used) {
 }
 
 // Fill at an arbitrary x fraction (0..1), linearly interpolated between the
-// five buckets' center points (in their fixed disgrace->grace order).
+// five kindling's center points (in their fixed disgrace->grace order).
 function fillAtX(xFrac, used) {
-  const n = BUCKET_IDS.length;
-  const centers = BUCKET_IDS.map((_, i) => (i + 0.5) / n);
-  const fills = BUCKET_IDS.map((id) => bucketFillFrac(id, used));
+  const n = KINDLING_IDS.length;
+  const centers = KINDLING_IDS.map((_, i) => (i + 0.5) / n);
+  const fills = KINDLING_IDS.map((id) => kindlingFillFrac(id, used));
   if (xFrac <= centers[0]) return fills[0];
   if (xFrac >= centers[n - 1]) return fills[n - 1];
   for (let i = 0; i < n - 1; i++) {
@@ -276,7 +276,7 @@ function fillAtX(xFrac, used) {
   return 0.5;
 }
 
-// The fuller a bucket, the further its stretch of shoreline recedes from
+// The fuller a kindling, the further its stretch of shoreline recedes from
 // the camera. Only ever recedes (moves up) from the baseline — it never
 // dips below it, so the tree line can't end up looking like it's standing
 // in the water.
@@ -344,7 +344,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   }
 
   // stars: spent messages. brightness = how many people spent them, nudged
-  // a little brighter over whichever bucket's zone is currently fullest —
+  // a little brighter over whichever kindling's zone is currently fullest —
   // the skyline echoing the same state as the shoreline below it
   for (const st_ of st.stars) {
     const y = -h * 0.95 + st_.y * (waterTop + h * 0.95);
@@ -440,7 +440,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.globalAlpha = 1;
 
   // the lake — its top edge is the same receding waterline, so a fuller
-  // bucket's stretch of water genuinely widens instead of just its trees
+  // kindling's stretch of water genuinely widens instead of just its trees
   // drifting upward over an unchanged lake
   const wg = ctx.createLinearGradient(0, waterTop, 0, bank);
   wg.addColorStop(0, '#12141c'); wg.addColorStop(0.18, '#080b11');

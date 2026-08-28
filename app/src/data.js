@@ -9,9 +9,9 @@ export const COLOR = {
 export const BONE = '#e6ddcb';
 export const BRONZE = '#c2a173';
 
-export const BUCKET_IDS = ['disgrace', 'ruin', 'vigil', 'resolve', 'grace'];
+export const KINDLING_IDS = ['disgrace', 'ruin', 'vigil', 'resolve', 'grace'];
 
-// Each bucket holds several "flavors" — distinct emotional shapes of the
+// Each kindling holds several "flavors" — distinct emotional shapes of the
 // same struggle, not just reworded copies of one template. A user picks
 // the flavor that actually matches their moment (see the template wheel
 // in ComposeScreen), then fills in that flavor's blanks. Every blank's
@@ -20,7 +20,7 @@ export const BUCKET_IDS = ['disgrace', 'ruin', 'vigil', 'resolve', 'grace'];
 // referent down to one story.
 
 // Grace has no scarcity mechanic (total: 0 means unbounded).
-export const BUCKETS = {
+export const KINDLING = {
   disgrace: {
     name: 'Disgrace',
     color: COLOR.disgrace,
@@ -642,9 +642,9 @@ export const BUCKETS = {
 };
 
 // Deliberately biased test data (increasing disgrace -> grace) so the
-// bucket-fill-driven shoreline/skyline effect is easy to see while testing.
+// kindling-fill-driven shoreline/skyline effect is easy to see while testing.
 export const INITIAL_USED = { disgrace: 3, ruin: 8, vigil: 15, resolve: 24, grace: 35 };
 
 export function totalFor(id) {
-  return BUCKETS[id].total;
+  return KINDLING[id].total;
 }

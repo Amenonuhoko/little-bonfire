@@ -1,14 +1,14 @@
-import { BUCKETS } from '../data';
+import { KINDLING } from '../data';
 
-export default function ReadScreen({ bucketId, readIdx, feedback, feedbackTone, onBack, onHelped, onNotThis }) {
-  const b = BUCKETS[bucketId];
+export default function ReadScreen({ kindlingId, readIdx, feedback, feedbackTone, onBack, onHelped, onNotThis }) {
+  const b = KINDLING[kindlingId];
   const msg = b.live[readIdx % b.live.length] || b.live[0];
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,10,12,.5),rgba(9,10,12,.9) 55%)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '64px 26px 40px', animation: 'ddIn .4s ease' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
         <div onClick={onBack} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer' }}>
-          ← buckets
+          ← kindling
         </div>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.1em', color: 'rgba(230,221,203,.4)' }}>
           {readIdx % b.live.length + 1} / {b.live.length} · drawn at random

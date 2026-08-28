@@ -1,4 +1,4 @@
-import { BUCKET_IDS, BUCKETS, totalFor } from '../data';
+import { KINDLING_IDS, KINDLING, totalFor } from '../data';
 
 function counterText(id, used) {
   const total = totalFor(id);
@@ -7,12 +7,12 @@ function counterText(id, used) {
   return left === 0 ? `READ-ONLY · 0/${total}` : `${left}/${total} SLOTS`;
 }
 
-export default function BucketsScreen({ mode, used, activeBucket, onBack, onPick }) {
+export default function KindlingScreen({ mode, used, activeKindling, onBack, onPick }) {
   const title = mode === 'drop' ? 'What is this?' : 'What do you need?';
   const sub =
     mode === 'drop'
       ? 'The word decides the template. Pick the one that stings, not the one that flatters.'
-      : 'One message, drawn at random from the bucket. No feed, no next.';
+      : 'One message, drawn at random from the kindling. No feed, no next.';
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(10,11,13,.86),rgba(10,11,13,.97) 40%)', display: 'flex', flexDirection: 'column', padding: '64px 0 40px', animation: 'ddIn .35s ease' }}>
@@ -24,12 +24,12 @@ export default function BucketsScreen({ mode, used, activeBucket, onBack, onPick
         <div style={{ fontFamily: 'Newsreader,serif', fontSize: 14, lineHeight: 1.5, color: 'rgba(230,221,203,.5)', maxWidth: '32ch' }}>{sub}</div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 24px 0', display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {BUCKET_IDS.map((id) => {
-          const b = BUCKETS[id];
+        {KINDLING_IDS.map((id) => {
+          const b = KINDLING[id];
           const total = totalFor(id);
           const full = total > 0 && used[id] >= total;
           const unbounded = total === 0;
-          const isActive = id === activeBucket;
+          const isActive = id === activeKindling;
           const disabled = mode === 'drop' && full;
           return (
             <div
