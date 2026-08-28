@@ -7,12 +7,14 @@ import ComposeScreen from './screens/ComposeScreen';
 import ConfirmScreen from './screens/ConfirmScreen';
 import ReadScreen from './screens/ReadScreen';
 
-function slotIdxsFor(bucketId) {
-  return BUCKETS[bucketId].parts.map((p, i) => (p.opts ? i : -1)).filter((i) => i >= 0);
+function slotIdxsFor(bucketId, templateIdx) {
+  return BUCKETS[bucketId].templates[templateIdx].parts
+    .map((p, i) => (p.opts ? i : -1))
+    .filter((i) => i >= 0);
 }
 
-function composeText(bucketId, picks) {
-  return BUCKETS[bucketId].parts
+function composeText(bucketId, templateIdx, picks) {
+  return BUCKETS[bucketId].templates[templateIdx].parts
     .map((p, i) => (p.opts ? picks[i] || '' : p.lit))
     .join('')
     .trim();
@@ -22,6 +24,7 @@ export default function App() {
   const [screen, setScreen] = useState('home'); // home | pick | compose | confirm | read
   const [mode, setMode] = useState('drop'); // drop | read
   const [bucket, setBucket] = useState('vigil');
+  const [template, setTemplate] = useState(0); // which flavor of the bucket is active
   const [revealed, setRevealed] = useState(false);
   const [sky, setSky] = useState(0); // 0 = at the fire, 1 = up in the sky
   const [picks, setPicks] = useState({});
@@ -75,8 +78,9 @@ export default function App() {
     const full = total > 0 && used[id] >= total;
     if (mode === 'drop' && full) { setBucket(id); setFeedback(''); return; }
     if (mode === 'read') { setBucket(id); setReadIdx(0); setFeedback(''); setScreen('read'); return; }
-    const idxs = slotIdxsFor(id);
+    const idxs = slotIdxsFor(id, 0);
     setBucket(id);
+    setTemplate(0);
     setPicks({});
     setSlot(idxs.length ? idxs[0] : 0);
     setScreen('compose');
@@ -84,18 +88,25 @@ export default function App() {
 
   const selectSlot = (i) => setSlot(i);
 
+  const selectTemplate = (idx) => {
+    const idxs = slotIdxsFor(bucket, idx);
+    setTemplate(idx);
+    setPicks({});
+    setSlot(idxs.length ? idxs[0] : 0);
+  };
+
   const choose = (slotIdx, val) => {
     const nextPicks = { ...picks, [slotIdx]: val };
     setPicks(nextPicks);
-    const idxs = slotIdxsFor(bucket);
+    const idxs = slotIdxsFor(bucket, template);
     const next = idxs.find((i) => nextPicks[i] === undefined);
     setSlot(next === undefined ? slotIdx : next);
   };
 
   const drop = () => {
-    if (slotIdxsFor(bucket).some((i) => picks[i] === undefined)) return;
+    if (slotIdxsFor(bucket, template).some((i) => picks[i] === undefined)) return;
     const total = totalFor(bucket);
-    const text = composeText(bucket, picks);
+    const text = composeText(bucket, template, picks);
     setUsed((u) => ({ ...u, [bucket]: total > 0 ? Math.min(total, u[bucket] + 1) : u[bucket] + 1 }));
     setDropped(text);
     setScreen('confirm');
@@ -173,6 +184,8 @@ export default function App() {
         {screen === 'compose' && (
           <ComposeScreen
             bucketId={bucket}
+            templateIdx={template}
+            onSelectTemplate={selectTemplate}
             picks={picks}
             slot={slot}
             onBack={goPickDrop}
