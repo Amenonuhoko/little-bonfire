@@ -118,12 +118,14 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
       const x = i / 21 + (Math.random() - 0.5) * 0.03;
       st.farTrees.push({ x, hh: 0.5 + Math.random() * 0.9, w: 0.55 + Math.random() * 0.5 });
     }
-    // a couple of tall pines framing the campsite right at each screen edge
+    // pines and low bushes framing the campsite at each screen edge — an
+    // even mix reads more like undergrowth than a wall of identical trees
     for (const side of [-1, 1]) {
       for (let i = 0; i < 4; i++) {
         const frac = 0.02 + i * 0.05 + Math.random() * 0.025;
         const x = side < 0 ? frac : 1 - frac;
-        st.nearTrees.push({ x, hh: 0.6 + Math.random() * 0.5, depth: i });
+        const type = Math.random() < 0.45 ? 'bush' : 'pine';
+        st.nearTrees.push({ x, hh: 0.6 + Math.random() * 0.5, depth: i, type });
       }
     }
 
@@ -384,6 +386,8 @@ function draw(st, screen, sky) {
     ctx.fillStyle = f < 0.3 ? 'rgba(255,198,124,0.85)' : 'rgba(240,126,44,0.5)';
     ctx.fillRect(fx - halfW / 2 + wob, y, halfW, 1.1);
   }
+  ctx.save();
+  ctx.filter = 'blur(1.4px)';
   for (const st_ of st.stars) {
     if (st_.b < 0.5) continue;
     const y = bank - 4 - ((st_.x * 7919) % 1000) / 1000 * (bank - waterTop) * 0.8;
@@ -391,6 +395,7 @@ function draw(st, screen, sky) {
     ctx.fillStyle = '#e9dcc0';
     ctx.fillRect(st_.x * w - 3 + Math.sin(st.t * 1.1 + st_.tw) * 3, y, 6, 1.1);
   }
+  ctx.restore();
   for (let i = 0; i < 26; i++) {
     const f = i / 26;
     const y = waterTop + 6 + f * (bank - waterTop - 6);
@@ -426,16 +431,38 @@ function draw(st, screen, sky) {
   ctx.fillStyle = lit; ctx.fillRect(-10, bank - 4, w + 20, h - bank + 90);
   ctx.restore();
 
-  // tall pines framing the campsite at either edge — closer trees are bigger and darker
+  // pines and low bushes framing the campsite — closer ones are bigger and darker
   for (const tr of st.nearTrees) {
     const tx = tr.x * w;
     if (tx < -80 || tx > w + 80) continue;
     const scale = 1.5 - tr.depth * 0.24;
     const baseY = bank + 22;
+    const shade = Math.max(0, 1 - Math.abs(tx - fx) / (w * 0.9));
+    const bodyColor = `rgba(${10 + shade * 26},${8 + shade * 16},${7 + shade * 9},${Math.max(0.4, 0.95 - tr.depth * 0.13)})`;
+
+    if (tr.type === 'bush') {
+      const bw = 15 * scale, bh = 11 * tr.hh * scale;
+      const sway = Math.sin(st.t * 0.4 + tr.x * 11) * 1.2 * scale;
+      ctx.fillStyle = bodyColor;
+      for (const [dx, dy2, r] of [[-bw * 0.55, -bh * 0.3, bw * 0.62], [bw * 0.5, -bh * 0.22, bw * 0.58], [0, -bh * 0.7, bw * 0.66]]) {
+        ctx.beginPath();
+        ctx.ellipse(tx + dx + sway, baseY + dy2, r, r * 0.82, 0, 0, 6.2832);
+        ctx.fill();
+      }
+      if (shade > 0.06) {
+        ctx.globalAlpha = shade * 0.28;
+        ctx.fillStyle = 'rgba(224,140,64,1)';
+        ctx.beginPath();
+        ctx.ellipse(tx + (tx < fx ? bw * 0.4 : -bw * 0.4) + sway, baseY - bh * 0.55, bw * 0.4, bw * 0.34, 0, 0, 6.2832);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      continue;
+    }
+
     const th = 150 * tr.hh * scale, tw2 = 17 * scale;
     const sway = Math.sin(st.t * 0.35 + tr.x * 9) * 2 * scale;
-    const shade = Math.max(0, 1 - Math.abs(tx - fx) / (w * 0.9));
-    ctx.fillStyle = `rgba(${10 + shade * 26},${8 + shade * 16},${7 + shade * 9},${Math.max(0.4, 0.95 - tr.depth * 0.13)})`;
+    ctx.fillStyle = bodyColor;
     for (let tier = 0; tier < 3; tier++) {
       const ty = baseY - tier * th * 0.32;
       const tierW = tw2 * (1 - tier * 0.22);
@@ -627,20 +654,26 @@ function draw(st, screen, sky) {
   ctx.ellipse(fx, fy + 4 - Hu * 0.36, 26 * flick, Hu * 0.42, 0, 0, 6.2832);
   ctx.fill();
 
-  // ribbons of flame, climbing like vines
+  // ribbons of flame, climbing like vines — each one's foot follows the
+  // ash mound's own curve and tapers to a point instead of a flat-cut
+  // rectangle, so the fire licks up out of the wood rather than sitting
+  // on it like a block
   const H = 320 * (0.92 + 0.14 * Math.sin(st.t * 2.1)) * (1 + st.flare * 0.4);
   for (let r0 = 0; r0 < 11; r0++) {
     const ph = r0 * 1.9, sp = 1.25 + r0 * 0.27, sway = 0.4 + (r0 % 3) * 0.45;
     const hgt = H * (0.4 + 0.6 * (((r0 * 37) % 11) / 10));
     const wb = 4.4 + (r0 % 3) * 2.8;
     const bx = fx + (r0 - 5) * 4.2;
+    const dxAsh = bx - fx;
+    const baseY = fy + 15 - 10 * Math.sqrt(Math.max(0, 1 - (dxAsh / 44) ** 2)) - 9;
     const pts = [], N = 18;
     for (let i = 0; i <= N; i++) {
       const f = i / N;
       const x = bx + Math.sin(st.t * sp + f * 5.1 + ph) * (2 + f * f * 34) * sway;
-      pts.push([x, fy + 6 - f * hgt, wb * Math.pow(1 - f, 1.15) + 0.35]);
+      const taper = Math.min(1, f * 5.5) * Math.pow(1 - f, 1.15);
+      pts.push([x, baseY - f * hgt, wb * taper + 0.35]);
     }
-    const grd = ctx.createLinearGradient(0, fy + 6, 0, fy + 6 - hgt);
+    const grd = ctx.createLinearGradient(0, baseY, 0, baseY - hgt);
     grd.addColorStop(0, 'rgba(255,88,24,0.52)');
     grd.addColorStop(0.16, 'rgba(255,138,30,0.46)');
     grd.addColorStop(0.5, 'rgba(255,96,26,0.26)');
@@ -652,7 +685,7 @@ function draw(st, screen, sky) {
     for (const p of pts) ctx.lineTo(p[0] - p[2], p[1]);
     for (let i = pts.length - 1; i >= 0; i--) ctx.lineTo(pts[i][0] + pts[i][2], pts[i][1]);
     ctx.closePath(); ctx.fill();
-    const cg = ctx.createLinearGradient(0, fy + 6, 0, fy + 6 - hgt * 0.72);
+    const cg = ctx.createLinearGradient(0, baseY, 0, baseY - hgt * 0.72);
     cg.addColorStop(0, 'rgba(255,228,152,0.55)');
     cg.addColorStop(0.38, 'rgba(255,196,88,0.3)');
     cg.addColorStop(1, 'rgba(255,168,56,0)');
