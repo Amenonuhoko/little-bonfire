@@ -231,7 +231,9 @@ function draw(st, screen, sky) {
   st.cam += (target - st.cam) * 0.16;
   st.flare *= 0.955;
   const camY = st.cam * h * 0.85;
-  const fx = w / 2, fy = h * 0.68, bank = fy + 20, waterTop = h * 0.24;
+  // bank sits well above fy so the whole rock ring (which reaches above fy
+  // on its far side) stays on the ground instead of poking into the lake
+  const fx = w / 2, fy = h * 0.68, bank = fy - 34, waterTop = h * 0.24;
   const flick = 1 + Math.sin(st.t * 7) * 0.05 + Math.sin(st.t * 3.3) * 0.06 + st.flare * 0.9;
 
   ctx.clearRect(0, 0, w, h);
