@@ -2,8 +2,35 @@ import { BONE } from '../data';
 
 export default function HomeScreen({
   quiet, revealed, skyMode, liveCountLabel, starCountLabel,
+  readingEmber, onDismissEmber,
   onWheel, onDown, onMove, onUp, onDrop, onRead,
 }) {
+  if (readingEmber) {
+    return (
+      <div
+        onPointerUp={onDismissEmber}
+        style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          justifyContent: 'flex-end', padding: '64px 26px 52px', cursor: 'pointer', animation: 'ddIn .4s ease',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: readingEmber.color, boxShadow: `0 0 12px ${readingEmber.color}` }} />
+            <div style={{ fontFamily: "'Young Serif',serif", fontSize: 16, color: BONE }}>{readingEmber.name}</div>
+          </div>
+          <div style={{ fontFamily: 'Newsreader,serif', fontSize: 19, lineHeight: 1.65, color: '#f0e2c8', textShadow: '0 0 34px rgba(194,161,115,.3)' }}>
+            {readingEmber.text}
+          </div>
+          <div style={{ height: 1, background: 'linear-gradient(90deg,rgba(194,161,115,.5),transparent)' }} />
+          <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.3)' }}>
+            touch anywhere to return
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onWheel={onWheel}

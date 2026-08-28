@@ -33,6 +33,8 @@ export default function App() {
   const [dropped, setDropped] = useState('');
   const [starCount, setStarCount] = useState(150);
 
+  const [readingEmber, setReadingEmber] = useState(null);
+
   const fireRef = useRef(null);
   const dragRef = useRef(null);
 
@@ -43,12 +45,13 @@ export default function App() {
   const tapFire = () => setRevealed((r) => !r);
   const goPickDrop = () => { setMode('drop'); setScreen('pick'); };
   const goPickRead = () => { setMode('read'); setScreen('pick'); setFeedback(''); };
+  const dismissEmber = () => setReadingEmber(null);
 
   const onWheel = (e) => {
     const d = e.deltaY;
     setSky((v) => Math.max(0, Math.min(1, v + (d < 0 ? 0.34 : -0.34))));
   };
-  const onDown = (e) => { dragRef.current = { y: e.clientY, sky, moved: 0 }; };
+  const onDown = (e) => { dragRef.current = { x: e.clientX, y: e.clientY, sky, moved: 0 }; };
   const onMove = (e) => {
     const d = dragRef.current;
     if (!d) return;
@@ -56,11 +59,15 @@ export default function App() {
     d.moved = Math.max(d.moved, Math.abs(dy));
     setSky(Math.max(0, Math.min(1, d.sky + dy / 420)));
   };
-  const onUp = () => {
+  const onUp = (e) => {
     const d = dragRef.current;
     dragRef.current = null;
-    if (d && d.moved < 6) tapFire();
-    else setSky((v) => (v > 0.5 ? 1 : 0));
+    if (d && d.moved < 6) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const hit = fireRef.current?.hitTestEmber(d.x - rect.left, d.y - rect.top);
+      if (hit) setReadingEmber(hit);
+      else tapFire();
+    } else setSky((v) => (v > 0.5 ? 1 : 0));
   };
 
   const pickBucket = (id) => {
@@ -140,6 +147,8 @@ export default function App() {
             skyMode={sky >= 0.4}
             liveCountLabel={liveCountLabel}
             starCountLabel={`${starCount} stars risen`}
+            readingEmber={readingEmber}
+            onDismissEmber={dismissEmber}
             onWheel={onWheel}
             onDown={onDown}
             onMove={onMove}

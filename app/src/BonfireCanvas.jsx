@@ -25,6 +25,21 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
       if (!s.current) return;
       s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0 });
     },
+    // finds the readable ember (if any) currently rendered near (px, py) in
+    // canvas-local coordinates — used to let a tap "read" an ember in place
+    hitTestEmber(px, py) {
+      const st = s.current;
+      if (!st || !st.w) return null;
+      let best = null, bestD = 26;
+      for (const e of st.embers) {
+        if (!e.readable) continue;
+        const x = e.x * st.w + Math.sin(st.t * e.sp + e.ph) * e.ax;
+        const y = e.y + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
+        const d = Math.hypot(px - x, py - y);
+        if (d < bestD) { bestD = d; best = e; }
+      }
+      return best ? { name: best.name, color: best.c, text: best.text } : null;
+    },
   }));
 
   useEffect(() => {
@@ -63,6 +78,10 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
       const total = totalFor(id) || 50;
       const n = Math.round((INITIAL_USED[id] / total) * 22);
       for (let i = 0; i < n; i++) st.embers.push(mkEmber(st, id, false));
+    }
+    // a few embers actually carry a message — touching one reads it in place
+    for (const id of ['disgrace', 'vigil', 'grace']) {
+      st.embers.push(mkReadableEmber(st, id));
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
@@ -147,6 +166,20 @@ function mkEmber(st, id, fresh) {
     sp: 0.05 + Math.random() * 0.1, ph: Math.random() * 6.28,
     r: 1.1 + Math.random() * 1.8, a: 0.4 + Math.random() * 0.45,
   };
+}
+
+// An ember that actually holds a message — slightly bigger and steadier so
+// it reads as touchable, positioned closer in so it's easy to reach.
+function mkReadableEmber(st, id) {
+  const e = mkEmber(st, id, false);
+  const live = BUCKETS[id].live;
+  e.x = Math.max(0.22, Math.min(0.78, e.x));
+  e.r = 2.6 + Math.random() * 0.6;
+  e.a = 0.75;
+  e.readable = true;
+  e.name = BUCKETS[id].name;
+  e.text = live[Math.floor(Math.random() * live.length)].t;
+  return e;
 }
 
 // A quick-rising spark thrown off by the flame — distinct from the slow,
@@ -458,6 +491,12 @@ function draw(st, screen, sky) {
     ctx.beginPath(); ctx.arc(x, y, e.r, 0, 6.2832); ctx.fill();
     ctx.globalAlpha = Math.max(0, a * 0.12);
     ctx.beginPath(); ctx.arc(x, y, e.r * 3.6, 0, 6.2832); ctx.fill();
+    if (e.readable) {
+      const breathe = 0.5 + 0.5 * Math.sin(st.t * 0.55 + e.ph * 0.3);
+      ctx.globalAlpha = 0.1 + 0.12 * breathe;
+      ctx.strokeStyle = e.c; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, e.r * 2.4 + breathe * 2.5, 0, 6.2832); ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 
