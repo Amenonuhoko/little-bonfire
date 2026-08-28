@@ -370,6 +370,21 @@ function draw(st, screen, sky, revealed, used) {
   ctx.lineTo(w + 10, waterTop + 6); ctx.closePath(); ctx.fill();
   ctx.restore();
 
+  // the shore's own waterline — the actual land/water boundary, not just the
+  // trees planted on it, follows the same recede curve so the terrain itself
+  // visibly changes instead of just the tree line floating above flat water
+  const shorePts = [];
+  for (let x = -10; x <= w + 10; x += 20) {
+    shorePts.push([x, waterTop - shoreRecede(Math.max(0, Math.min(1, x / w)), used)]);
+  }
+  if (shorePts[shorePts.length - 1][0] < w + 10) {
+    shorePts.push([w + 10, waterTop - shoreRecede(1, used)]);
+  }
+  const traceShoreTop = (dy) => {
+    ctx.moveTo(shorePts[0][0], shorePts[0][1] + dy);
+    for (const p of shorePts) ctx.lineTo(p[0], p[1] + dy);
+  };
+
   // far shore — a tree line of small pine silhouettes, softened at the base
   ctx.save();
   ctx.filter = 'blur(0.6px)';
@@ -391,20 +406,34 @@ function draw(st, screen, sky, revealed, used) {
   haze.addColorStop(0.4, 'rgba(120,120,140,0.1)');
   haze.addColorStop(1, 'rgba(120,120,140,0)');
   ctx.fillStyle = haze;
-  ctx.fillRect(-10, waterTop - 10, w + 20, 56);
+  ctx.beginPath();
+  traceShoreTop(-10);
+  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 46);
+  ctx.closePath(); ctx.fill();
+
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = 'rgba(190,140,86,0.25)';
-  ctx.fillRect(-10, waterTop - 1, w + 20, 1.2);
+  ctx.beginPath();
+  traceShoreTop(-1);
+  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 0.2);
+  ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1;
 
-  // the lake — starts hazy near the shore, deepens with distance from it
+  // the lake — its top edge is the same receding waterline, so a fuller
+  // bucket's stretch of water genuinely widens instead of just its trees
+  // drifting upward over an unchanged lake
   const wg = ctx.createLinearGradient(0, waterTop, 0, bank);
   wg.addColorStop(0, '#12141c'); wg.addColorStop(0.18, '#080b11');
   wg.addColorStop(0.55, '#06080d'); wg.addColorStop(1, '#04060a');
-  ctx.fillStyle = wg; ctx.fillRect(-10, waterTop, w + 20, bank - waterTop);
+  ctx.fillStyle = wg;
+  ctx.beginPath();
+  traceShoreTop(0);
+  ctx.lineTo(w + 10, bank); ctx.lineTo(-10, bank); ctx.closePath(); ctx.fill();
 
   ctx.save();
-  ctx.beginPath(); ctx.rect(-10, waterTop, w + 20, bank - waterTop); ctx.clip();
+  ctx.beginPath();
+  traceShoreTop(0);
+  ctx.lineTo(w + 10, bank); ctx.lineTo(-10, bank); ctx.closePath(); ctx.clip();
 
   const rTop = bank - (bank - waterTop) * 0.62;
   const refl = ctx.createLinearGradient(0, bank, 0, rTop);
