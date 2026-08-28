@@ -3,14 +3,16 @@ import { BUCKET_IDS, BUCKETS, INITIAL_USED, totalFor } from './data';
 
 // Ported from the Claude Design prototype's canvas draw loop — the bonfire,
 // its embers (live messages) and stars (spent/"this helped" messages).
-const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
+const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed }, ref) {
   const canvasElRef = useRef(null);
   const s = useRef(null); // mutable animation state, lives outside React render cycle
   const screenRef = useRef(screen);
   const skyRef = useRef(sky);
+  const revealedRef = useRef(revealed);
 
   screenRef.current = screen;
   skyRef.current = sky;
+  revealedRef.current = revealed;
 
   useImperativeHandle(ref, () => ({
     flare() { if (s.current) s.current.flare = 1; },
@@ -132,7 +134,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
     const loop = () => {
       st.raf = requestAnimationFrame(loop);
       st.t += 0.016;
-      draw(st, screenRef.current, skyRef.current);
+      draw(st, screenRef.current, skyRef.current, revealedRef.current);
     };
     loop();
 
@@ -166,7 +168,7 @@ function mkEmber(st, id, fresh) {
     y: fresh ? fy - 110 : ey,
     ax: 6 + Math.random() * 18, ay: 5 + Math.random() * 16,
     sp: 0.05 + Math.random() * 0.1, ph: Math.random() * 6.28,
-    r: 1.1 + Math.random() * 1.8, a: 0.4 + Math.random() * 0.45,
+    r: 1.5 + Math.random() * 2, a: 0.55 + Math.random() * 0.4,
   };
 }
 
@@ -226,7 +228,7 @@ function makeNoisePattern(ctx) {
   return ctx.createPattern(n, 'repeat');
 }
 
-function draw(st, screen, sky) {
+function draw(st, screen, sky, revealed) {
   const { ctx, w, h } = st;
   if (!ctx || !w) return;
   const target = screen === 'home' ? sky : 0;
@@ -553,21 +555,24 @@ function draw(st, screen, sky) {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 
-  // embers: live messages, floating in place
+  // embers: live messages, floating in place — a touch bolder once the fire
+  // has been touched once, rewarding the tap with a clearer ember field
+  const emberBoost = revealed ? 1.55 : 1;
   for (const e of st.embers) {
     const x = e.x * w + Math.sin(st.t * e.sp + e.ph) * e.ax;
     const y = e.y + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
-    const a = e.a * (0.5 + 0.5 * Math.sin(st.t * 0.42 + e.ph));
+    const a = Math.min(1, e.a * (0.62 + 0.38 * Math.sin(st.t * 0.42 + e.ph)) * emberBoost);
+    const r = e.r * emberBoost;
     ctx.globalAlpha = Math.max(0, a);
     ctx.fillStyle = e.c;
-    ctx.beginPath(); ctx.arc(x, y, e.r, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = Math.max(0, a * 0.12);
-    ctx.beginPath(); ctx.arc(x, y, e.r * 3.6, 0, 6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = Math.max(0, a * (revealed ? 0.22 : 0.14));
+    ctx.beginPath(); ctx.arc(x, y, r * 3.8, 0, 6.2832); ctx.fill();
     if (e.readable) {
       const breathe = 0.5 + 0.5 * Math.sin(st.t * 0.55 + e.ph * 0.3);
       ctx.globalAlpha = 0.1 + 0.12 * breathe;
       ctx.strokeStyle = e.c; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(x, y, e.r * 2.4 + breathe * 2.5, 0, 6.2832); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r * 2.4 + breathe * 2.5, 0, 6.2832); ctx.stroke();
     }
   }
   ctx.globalAlpha = 1;
