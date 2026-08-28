@@ -773,7 +773,12 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     const wb = 4.4 + (r0 % 3) * 2.8;
     const bx = fx + (r0 - 5) * 4.2;
     const dxAsh = bx - fx;
-    const baseY = fy + 15 - 10 * Math.sqrt(Math.max(0, 1 - (dxAsh / 44) ** 2)) - 9;
+    // each ribbon roots at a slightly different depth in the log pile,
+    // not one smooth shared line — a stable per-ribbon hash, not per-frame
+    // noise, so the unevenness reads as texture rather than a flicker
+    const hash = Math.sin(r0 * 12.9898) * 43758.5453;
+    const baseJitter = (hash - Math.floor(hash) - 0.5) * 22;
+    const baseY = fy + 15 - 10 * Math.sqrt(Math.max(0, 1 - (dxAsh / 44) ** 2)) - 9 + baseJitter;
     const pts = [], N = 18;
     for (let i = 0; i <= N; i++) {
       const f = i / N;
