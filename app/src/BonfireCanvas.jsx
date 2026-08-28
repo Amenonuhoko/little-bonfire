@@ -32,13 +32,13 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
     const ctx = canvas.getContext('2d');
     const st = {
       ctx, w: 0, h: 0, cam: 0, flare: 0, t: 0,
-      embers: [], stars: [], tufts: [], raf: 0,
+      embers: [], stars: [], tufts: [], sparks: [], smoke: [], noisePattern: null, raf: 0,
     };
     s.current = st;
 
     const onResize = () => {
       const r = canvas.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
       canvas.width = r.width * dpr;
       canvas.height = r.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -48,6 +48,8 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
     onResize();
     window.addEventListener('resize', onResize);
     const resizeTimer = setTimeout(onResize, 250);
+
+    st.noisePattern = makeNoisePattern(ctx);
 
     for (let i = 0; i < 46; i++) {
       st.tufts.push({ x: Math.random(), y: Math.random(), h: 4 + Math.random() * 9, l: (Math.random() - 0.5) * 5 });
@@ -61,6 +63,8 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky }, ref) {
       const n = Math.round((INITIAL_USED[id] / total) * 22);
       for (let i = 0; i < n; i++) st.embers.push(mkEmber(st, id, false));
     }
+    for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
+    for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
 
     const loop = () => {
       st.raf = requestAnimationFrame(loop);
@@ -101,6 +105,48 @@ function mkEmber(st, id, fresh) {
     sp: 0.05 + Math.random() * 0.1, ph: Math.random() * 6.28,
     r: 1.1 + Math.random() * 1.8, a: 0.4 + Math.random() * 0.45,
   };
+}
+
+// A quick-rising spark thrown off by the flame — distinct from the slow,
+// floating "embers" (which represent live messages, not fire physics).
+function mkSpark(fresh) {
+  return {
+    x: 0.5 + (Math.random() - 0.5) * 0.05,
+    rise: fresh ? Math.random() : 0,
+    speed: 0.35 + Math.random() * 0.5,
+    drift: (Math.random() - 0.5) * 26,
+    wobPh: Math.random() * 6.28,
+    life: fresh ? Math.random() : 1,
+    hue: Math.random(),
+  };
+}
+
+// A soft wisp of smoke drifting up above the flame tip.
+function mkSmoke(fresh) {
+  return {
+    x: 0.5 + (Math.random() - 0.5) * 0.18,
+    rise: fresh ? Math.random() : 0,
+    speed: 0.06 + Math.random() * 0.05,
+    drift: (Math.random() - 0.5) * 40,
+    size: 20 + Math.random() * 26,
+    ph: Math.random() * 6.28,
+  };
+}
+
+// Precomputed grain tile, blended over every frame at low opacity so the
+// gradients read as painted rather than as a flat digital glow.
+function makeNoisePattern(ctx) {
+  const n = document.createElement('canvas');
+  n.width = 96; n.height = 96;
+  const nctx = n.getContext('2d');
+  const img = nctx.createImageData(96, 96);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 255;
+    const a = Math.random() * 22;
+    img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = a;
+  }
+  nctx.putImageData(img, 0, 0);
+  return ctx.createPattern(n, 'repeat');
 }
 
 function draw(st, screen, sky) {
@@ -288,14 +334,42 @@ function draw(st, screen, sky) {
   }
   ctx.globalAlpha = 1;
 
-  // ribbons of flame, climbing like vines
+  // smoke: soft wisps drifting up above the flame, ahead of the ribbons
+  ctx.globalCompositeOperation = 'source-over';
+  for (const sm of st.smoke) {
+    sm.rise += 0.0032 * sm.speed;
+    if (sm.rise > 1) { Object.assign(sm, mkSmoke(false)); }
+    const rise = sm.rise;
+    const sy = fy - 40 - rise * h * 0.5;
+    const sx = fx + sm.drift * rise + Math.sin(st.t * 0.25 + sm.ph) * 14 * rise;
+    const size = sm.size * (0.5 + rise * 1.6);
+    const a = Math.sin(rise * Math.PI) * 0.09;
+    const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, size);
+    sg.addColorStop(0, `rgba(150,150,160,${a.toFixed(3)})`);
+    sg.addColorStop(1, 'rgba(150,150,160,0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(sx, sy, size, 0, 6.2832); ctx.fill();
+  }
+
+  // undertone: a deep ember-crimson glow beneath the flame for painterly depth
   ctx.globalCompositeOperation = 'lighter';
+  const Hu = 200 * (0.9 + 0.12 * Math.sin(st.t * 1.7)) * (1 + st.flare * 0.3);
+  const ug = ctx.createLinearGradient(0, fy + 8, 0, fy + 8 - Hu);
+  ug.addColorStop(0, 'rgba(196,40,58,0.32)');
+  ug.addColorStop(0.3, 'rgba(168,32,70,0.18)');
+  ug.addColorStop(1, 'rgba(120,24,80,0)');
+  ctx.fillStyle = ug;
+  ctx.beginPath();
+  ctx.ellipse(fx, fy + 4 - Hu * 0.36, 26 * flick, Hu * 0.42, 0, 0, 6.2832);
+  ctx.fill();
+
+  // ribbons of flame, climbing like vines
   const H = 320 * (0.92 + 0.14 * Math.sin(st.t * 2.1)) * (1 + st.flare * 0.4);
-  for (let r0 = 0; r0 < 9; r0++) {
+  for (let r0 = 0; r0 < 11; r0++) {
     const ph = r0 * 1.9, sp = 1.25 + r0 * 0.27, sway = 0.4 + (r0 % 3) * 0.45;
     const hgt = H * (0.4 + 0.6 * (((r0 * 37) % 11) / 10));
     const wb = 4.4 + (r0 % 3) * 2.8;
-    const bx = fx + (r0 - 4) * 4.6;
+    const bx = fx + (r0 - 5) * 4.2;
     const pts = [], N = 18;
     for (let i = 0; i <= N; i++) {
       const f = i / N;
@@ -303,9 +377,10 @@ function draw(st, screen, sky) {
       pts.push([x, fy + 6 - f * hgt, wb * Math.pow(1 - f, 1.15) + 0.35]);
     }
     const grd = ctx.createLinearGradient(0, fy + 6, 0, fy + 6 - hgt);
-    grd.addColorStop(0, 'rgba(255,104,16,0.5)');
+    grd.addColorStop(0, 'rgba(255,88,24,0.52)');
     grd.addColorStop(0.16, 'rgba(255,138,30,0.46)');
-    grd.addColorStop(0.55, 'rgba(255,78,14,0.24)');
+    grd.addColorStop(0.5, 'rgba(255,96,26,0.26)');
+    grd.addColorStop(0.8, 'rgba(255,70,40,0.12)');
     grd.addColorStop(1, 'rgba(255,58,10,0)');
     ctx.fillStyle = grd;
     ctx.beginPath();
@@ -329,7 +404,30 @@ function draw(st, screen, sky) {
   bb.addColorStop(0.38, 'rgba(255,140,44,0.2)');
   bb.addColorStop(1, 'rgba(255,110,30,0)');
   ctx.fillStyle = bb; ctx.beginPath(); ctx.arc(fx, fy + 2, 58 * flick, 0, 6.2832); ctx.fill();
+
+  // sparks: quick bright motes thrown up off the flame
+  for (const sp of st.sparks) {
+    sp.rise += 0.016 * sp.speed;
+    sp.life -= 0.016 * sp.speed * 0.55;
+    if (sp.life <= 0 || sp.rise > 1.15) Object.assign(sp, mkSpark(false));
+    const rise = sp.rise;
+    const py = fy + 4 - rise * (170 + st.flare * 60);
+    const px = fx + sp.drift * rise + Math.sin(st.t * 4 + sp.wobPh) * 6 * rise;
+    const a = Math.max(0, Math.sin(rise * Math.PI) * sp.life);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = sp.hue > 0.5 ? '#ffe6ad' : '#ff9a44';
+    ctx.beginPath(); ctx.arc(px, py, 0.9 + sp.hue * 0.6, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
   ctx.restore();
+
+  // grain: keeps the gradients feeling painted rather than digitally flat
+  if (st.noisePattern) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = st.noisePattern;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
+  }
 }
