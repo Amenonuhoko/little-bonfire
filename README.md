@@ -30,4 +30,4 @@ npm run build
 
 ## Deploy
 
-Deployed to GitHub Pages. `vite.config.js` sets `base: '/little-bonfire/'` for the project-pages path — update it if the deploy target changes.
+Pushes to `main` build the app and publish it to GitHub Pages via `.github/workflows/deploy.yml`.
