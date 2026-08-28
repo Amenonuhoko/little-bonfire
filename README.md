@@ -1,25 +1,33 @@
-# CODING AGENTS: READ THIS FIRST
+# Dead Drop
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+An anonymous, mood-based messaging app modeled on the Dark Souls/Elden Ring message system: brief, templated notes left for strangers. No profiles, no feeds, no replies — you open the app because you feel something, and either read or drop.
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+## How it works
 
-## What you should do — IMPORTANT
+- **Buckets** — five moods to choose from: Disgrace, Ruin, Vigil, Resolve, Grace. Each bucket has its own fixed message template.
+- **Templates, not free text** — every drop is built by filling in blanks from a bucket-specific template, forcing specificity over generic positivity.
+- **Scarcity** — each bucket has a fixed number of slots. Dropping a message fills a slot; the bucket goes read-only when full. Slots free up when a message is marked "this helped" — retirement as a form of success, not moderation.
+- **The bonfire** — the home screen: a fire whose embers represent live messages, colored per bucket, with successfully "spent" messages rising to become stars.
 
-**Read the chat transcripts first.** There are 1 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+## Stack
 
-**Read `project/Dead Drop.dc.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+React + Vite, frontend-only (all state is local/in-memory — no backend yet).
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+## Development
 
-## About the design files
+```bash
+cd app
+npm install
+npm run dev
+```
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+## Build
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+```bash
+cd app
+npm run build
+```
 
-## Bundle contents
+## Deploy
 
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `Mobile app design project` project files (HTML prototypes, assets, components)
+Pushes to `main` build the app and publish it to GitHub Pages via `.github/workflows/deploy.yml`.
