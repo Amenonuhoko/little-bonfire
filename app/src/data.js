@@ -109,7 +109,9 @@ export const BUCKETS = {
   },
 };
 
-export const INITIAL_USED = { disgrace: 47, ruin: 50, vigil: 31, resolve: 22, grace: 12 };
+// Deliberately biased test data (increasing disgrace -> grace) so the
+// bucket-fill-driven shoreline/skyline effect is easy to see while testing.
+export const INITIAL_USED = { disgrace: 3, ruin: 8, vigil: 15, resolve: 24, grace: 35 };
 
 export function totalFor(id) {
   return BUCKETS[id].total;

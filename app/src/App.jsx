@@ -95,11 +95,12 @@ export default function App() {
   const drop = () => {
     if (slotIdxsFor(bucket).some((i) => picks[i] === undefined)) return;
     const total = totalFor(bucket);
+    const text = composeText(bucket, picks);
     setUsed((u) => ({ ...u, [bucket]: total > 0 ? Math.min(total, u[bucket] + 1) : u[bucket] + 1 }));
-    setDropped(composeText(bucket, picks));
+    setDropped(text);
     setScreen('confirm');
     fireRef.current?.flare();
-    fireRef.current?.addEmber(bucket);
+    fireRef.current?.addEmber(bucket, text);
   };
 
   const helped = () => {

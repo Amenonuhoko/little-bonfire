@@ -73,7 +73,8 @@ export default function HomeScreen({
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
               <div
-                onClick={(e) => { e.stopPropagation(); onDrop(); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => { e.stopPropagation(); onDrop(); }}
                 style={{
                   flex: 1, padding: '15px 18px', borderRadius: 2,
                   border: '1px solid rgba(194,161,115,.45)',
@@ -84,7 +85,8 @@ export default function HomeScreen({
                 Drop a message
               </div>
               <div
-                onClick={(e) => { e.stopPropagation(); onRead(); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => { e.stopPropagation(); onRead(); }}
                 style={{
                   padding: '15px 18px', border: '1px solid rgba(230,221,203,.16)',
                   color: 'rgba(230,221,203,.75)', fontSize: 13.5, letterSpacing: '.03em',

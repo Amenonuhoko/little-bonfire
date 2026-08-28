@@ -18,9 +18,11 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
 
   useImperativeHandle(ref, () => ({
     flare() { if (s.current) s.current.flare = 1; },
-    addEmber(bucketId) {
+    // text is the message that was actually just dropped, so the new ember
+    // is readable with its own real content, not a generic placeholder
+    addEmber(bucketId, text) {
       if (!s.current) return;
-      s.current.embers.push(mkEmber(s.current, bucketId, true));
+      s.current.embers.push(mkEmber(s.current, bucketId, true, text));
     },
     removeOldestEmber() {
       if (s.current && s.current.embers.length) s.current.embers.shift();
@@ -29,14 +31,14 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
       if (!s.current) return;
       s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0 });
     },
-    // finds the readable ember (if any) currently rendered near (px, py) in
-    // canvas-local coordinates — used to let a tap "read" an ember in place
+    // finds the ember (if any) currently rendered near (px, py) in
+    // canvas-local coordinates — used to let a tap read it in place. Every
+    // ember represents a real simulated message, so every ember qualifies.
     hitTestEmber(px, py) {
       const st = s.current;
       if (!st || !st.w) return null;
       let best = null, bestD = 26;
       for (const e of st.embers) {
-        if (!e.readable) continue;
         const x = e.x * st.w + Math.sin(st.t * e.sp + e.ph) * e.ax;
         const y = e.y + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
         const d = Math.hypot(px - x, py - y);
@@ -78,14 +80,10 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
       const likes = Math.round(6 + Math.pow(Math.random(), 2.6) * 240);
       st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28 });
     }
+    // one ember per actually-simulated message — every ember is readable,
+    // there's nothing decorative floating out there without a real message
     for (const id of BUCKET_IDS) {
-      const total = totalFor(id) || 50;
-      const n = Math.round((INITIAL_USED[id] / total) * 22);
-      for (let i = 0; i < n; i++) st.embers.push(mkEmber(st, id, false));
-    }
-    // a few embers actually carry a message — touching one reads it in place
-    for (const id of ['disgrace', 'vigil', 'grace']) {
-      st.embers.push(mkReadableEmber(st, id));
+      for (let i = 0; i < INITIAL_USED[id]; i++) st.embers.push(mkEmber(st, id, false));
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
@@ -157,35 +155,28 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
 
 export default BonfireCanvas;
 
-function mkEmber(st, id, fresh) {
+// Every ember is a real simulated message — none are decorative. `text`
+// lets a just-dropped ember show its own actual content; otherwise one of
+// the bucket's sample messages is cycled in.
+let emberSeq = 0;
+function mkEmber(st, id, fresh, text) {
   const h = st.h || 860, w = st.w || 402;
   const fy = h * 0.68;
   const ang = Math.random() * 6.2832;
   const r = Math.pow(Math.random(), 0.55);
   const ex = 0.5 + Math.cos(ang) * r * 0.46;
   const ey = fy - 28 - Math.abs(Math.sin(ang)) * r * h * 0.42 - r * 60;
+  const live = BUCKETS[id].live;
   return {
     c: BUCKETS[id].color,
+    name: BUCKETS[id].name,
+    text: text || live[emberSeq++ % live.length].t,
     x: fresh ? 0.5 + (Math.random() - 0.5) * 0.1 : Math.max(0.04, Math.min(0.96, ex)),
     y: fresh ? fy - 110 : ey,
     ax: 6 + Math.random() * 18, ay: 5 + Math.random() * 16,
     sp: 0.05 + Math.random() * 0.1, ph: Math.random() * 6.28,
     r: 1.5 + Math.random() * 2, a: 0.55 + Math.random() * 0.4,
   };
-}
-
-// An ember that actually holds a message — slightly bigger and steadier so
-// it reads as touchable, positioned closer in so it's easy to reach.
-function mkReadableEmber(st, id) {
-  const e = mkEmber(st, id, false);
-  const live = BUCKETS[id].live;
-  e.x = Math.max(0.22, Math.min(0.78, e.x));
-  e.r = 2.6 + Math.random() * 0.6;
-  e.a = 0.75;
-  e.readable = true;
-  e.name = BUCKETS[id].name;
-  e.text = live[Math.floor(Math.random() * live.length)].t;
-  return e;
 }
 
 // A quick-rising spark thrown off by the flame — distinct from the slow,
@@ -638,12 +629,6 @@ function draw(st, screen, sky, revealed, used) {
     ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
     ctx.globalAlpha = Math.max(0, a * (revealed ? 0.22 : 0.14));
     ctx.beginPath(); ctx.arc(x, y, r * 3.8, 0, 6.2832); ctx.fill();
-    if (e.readable) {
-      const breathe = 0.5 + 0.5 * Math.sin(st.t * 0.55 + e.ph * 0.3);
-      ctx.globalAlpha = 0.1 + 0.12 * breathe;
-      ctx.strokeStyle = e.c; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(x, y, r * 2.4 + breathe * 2.5, 0, 6.2832); ctx.stroke();
-    }
   }
   ctx.globalAlpha = 1;
 
