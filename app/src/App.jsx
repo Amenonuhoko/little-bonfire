@@ -49,7 +49,7 @@ export default function App() {
 
   const onWheel = (e) => {
     const d = e.deltaY;
-    setSky((v) => Math.max(0, Math.min(1, v + (d < 0 ? 0.34 : -0.34))));
+    setSky((v) => Math.max(0, Math.min(1, v + (d < 0 ? 0.3 : -0.3))));
   };
   const onDown = (e) => { dragRef.current = { x: e.clientX, y: e.clientY, sky, moved: 0 }; };
   const onMove = (e) => {
@@ -57,7 +57,7 @@ export default function App() {
     if (!d) return;
     const dy = d.y - e.clientY;
     d.moved = Math.max(d.moved, Math.abs(dy));
-    setSky(Math.max(0, Math.min(1, d.sky + dy / 420)));
+    setSky(Math.max(0, Math.min(1, d.sky + dy / 260)));
   };
   const onUp = (e) => {
     const d = dragRef.current;
@@ -67,7 +67,7 @@ export default function App() {
       const hit = fireRef.current?.hitTestEmber(d.x - rect.left, d.y - rect.top);
       if (hit) setReadingEmber(hit);
       else tapFire();
-    } else setSky((v) => (v > 0.5 ? 1 : 0));
+    } else setSky((v) => (v > 0.4 ? 1 : 0));
   };
 
   const pickBucket = (id) => {

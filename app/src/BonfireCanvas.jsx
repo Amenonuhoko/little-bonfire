@@ -228,10 +228,10 @@ function draw(st, screen, sky) {
   const { ctx, w, h } = st;
   if (!ctx || !w) return;
   const target = screen === 'home' ? sky : 0;
-  st.cam += (target - st.cam) * 0.06;
+  st.cam += (target - st.cam) * 0.16;
   st.flare *= 0.955;
   const camY = st.cam * h * 0.85;
-  const fx = w / 2, fy = h * 0.68, bank = fy + 20, waterTop = h * 0.33;
+  const fx = w / 2, fy = h * 0.68, bank = fy + 20, waterTop = h * 0.24;
   const flick = 1 + Math.sin(st.t * 7) * 0.05 + Math.sin(st.t * 3.3) * 0.06 + st.flare * 0.9;
 
   ctx.clearRect(0, 0, w, h);
@@ -304,17 +304,28 @@ function draw(st, screen, sky) {
   }
   ctx.globalAlpha = 1;
 
-  // distant mountains — a soft, low-contrast ridge well behind the tree line
-  ctx.fillStyle = '#0d1018';
-  ctx.globalAlpha = 0.55;
-  ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
+  // distant mountains — a soft, hazy ridge well behind the tree line, faded
+  // at both edges so it dissolves into the sky rather than reading as a cutout
+  ctx.save();
+  ctx.filter = 'blur(3px)';
+  const mtnPts = [];
   for (let x = -10; x <= w + 10; x += 24) {
-    ctx.lineTo(x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10);
+    mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10]);
   }
+  const mtnTopY = Math.min(...mtnPts.map((p) => p[1]));
+  const mg2 = ctx.createLinearGradient(0, mtnTopY, 0, waterTop + 6);
+  mg2.addColorStop(0, 'rgba(13,16,24,0)');
+  mg2.addColorStop(0.35, 'rgba(13,16,24,0.45)');
+  mg2.addColorStop(1, 'rgba(13,16,24,0.6)');
+  ctx.fillStyle = mg2;
+  ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
+  for (const p of mtnPts) ctx.lineTo(p[0], p[1]);
   ctx.lineTo(w + 10, waterTop + 6); ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 1;
+  ctx.restore();
 
-  // far shore — a tree line of small pine silhouettes
+  // far shore — a tree line of small pine silhouettes, softened at the base
+  ctx.save();
+  ctx.filter = 'blur(0.6px)';
   ctx.fillStyle = '#080b10';
   ctx.beginPath(); ctx.moveTo(-10, waterTop + 4);
   for (const ft of st.farTrees) {
@@ -325,14 +336,24 @@ function draw(st, screen, sky) {
     ctx.lineTo(x + tw2, ph);
   }
   ctx.lineTo(w + 10, waterTop + 4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // atmospheric haze: blends the shoreline into the water instead of a hard cut
+  const haze = ctx.createLinearGradient(0, waterTop - 10, 0, waterTop + 46);
+  haze.addColorStop(0, 'rgba(150,148,168,0.22)');
+  haze.addColorStop(0.4, 'rgba(120,120,140,0.1)');
+  haze.addColorStop(1, 'rgba(120,120,140,0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(-10, waterTop - 10, w + 20, 56);
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = 'rgba(190,140,86,0.25)';
   ctx.fillRect(-10, waterTop - 1, w + 20, 1.2);
   ctx.globalAlpha = 1;
 
-  // the lake
+  // the lake — starts hazy near the shore, deepens with distance from it
   const wg = ctx.createLinearGradient(0, waterTop, 0, bank);
-  wg.addColorStop(0, '#080b11'); wg.addColorStop(0.55, '#06080d'); wg.addColorStop(1, '#04060a');
+  wg.addColorStop(0, '#12141c'); wg.addColorStop(0.18, '#080b11');
+  wg.addColorStop(0.55, '#06080d'); wg.addColorStop(1, '#04060a');
   ctx.fillStyle = wg; ctx.fillRect(-10, waterTop, w + 20, bank - waterTop);
 
   ctx.save();
