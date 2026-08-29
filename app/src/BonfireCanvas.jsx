@@ -295,6 +295,22 @@ function shoreRecede(xFrac, used) {
   return Math.max(0, base + noise);
 }
 
+// The near shoreline — the water's edge right beside the campsite, not the
+// distant horizon line above. This is the one people actually see up
+// close, so it gets a much bigger recede range than the distant curve,
+// its own independent noise (so it doesn't just mirror that curve), and a
+// slow traveling-wave term for a little live motion — "fluid, not stiff."
+const BANK_RECEDE_MAX = 70;
+function bankRecede(xFrac, used) {
+  const base = fillAtX(xFrac, used) * BANK_RECEDE_MAX;
+  const noise = Math.sin(xFrac * 11.7 + 0.4) * 11 + Math.sin(xFrac * 29.3 + 2.8) * 5.5;
+  return Math.max(0, base + noise);
+}
+function bankYAt(xFrac, used, t, fy) {
+  const xf = Math.max(0, Math.min(1, xFrac));
+  return fy - 34 - bankRecede(xf, used) + Math.sin(t * 0.12 + xf * 6) * 2.5;
+}
+
 function draw(st, screen, sky, revealed, used, activeEmberId) {
   const { ctx, w, h } = st;
   if (!ctx || !w) return;
@@ -303,8 +319,13 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   st.flare *= 0.955;
   const camY = st.cam * h * 0.85;
   // bank sits well above fy so the whole rock ring (which reaches above fy
-  // on its far side) stays on the ground instead of poking into the lake
-  const fx = w / 2, fy = h * 0.68, bank = fy - 34, waterTop = h * 0.24;
+  // on its far side) stays on the ground instead of poking into the lake.
+  // This is the representative (center-x) value, used where a single
+  // scalar is still fine (the fire-centered reflection, the ambient glow);
+  // the actual boundary drawn on screen is bankPts/traceBankTop below,
+  // which varies per-x with kindling fill instead of being flat.
+  const fx = w / 2, fy = h * 0.68, waterTop = h * 0.24;
+  const bank = bankYAt(0.5, used, st.t, fy);
   const flick = 1 + Math.sin(st.t * 7) * 0.05 + Math.sin(st.t * 3.3) * 0.06 + st.flare * 0.9;
 
   ctx.clearRect(0, 0, w, h);
@@ -381,32 +402,32 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   }
   ctx.globalAlpha = 1;
 
-  // distant mountains — a soft, hazy ridge well behind the tree line, faded
-  // at both edges so it dissolves into the sky rather than reading as a cutout
+  // distant mountains — the actual skyline. Genuinely visible now (was
+  // nearly invisible against the sky before), fading only at its own top
+  // edge so it dissolves into the stars there while still reading as a
+  // real ridge silhouette lower down.
   ctx.save();
-  ctx.filter = 'blur(5px)';
+  ctx.filter = 'blur(3.5px)';
   const mtnPts = [];
   for (let x = -10; x <= w + 10; x += 24) {
     const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), used);
     mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10 - recede]);
   }
   const mtnTopY = Math.min(...mtnPts.map((p) => p[1]));
-  // gradient starts well above the ridge's own highest point so the fade
-  // into the star field is a long dissolve, not a sharp edge
-  const mg2 = ctx.createLinearGradient(0, mtnTopY - 60, 0, waterTop + 6);
-  mg2.addColorStop(0, 'rgba(13,16,24,0)');
-  mg2.addColorStop(0.3, 'rgba(13,16,24,0.14)');
-  mg2.addColorStop(0.62, 'rgba(13,16,24,0.42)');
-  mg2.addColorStop(1, 'rgba(13,16,24,0.6)');
+  const mg2 = ctx.createLinearGradient(0, mtnTopY - 50, 0, waterTop + 6);
+  mg2.addColorStop(0, 'rgba(18,22,32,0)');
+  mg2.addColorStop(0.32, 'rgba(18,22,32,0.24)');
+  mg2.addColorStop(0.65, 'rgba(18,22,32,0.6)');
+  mg2.addColorStop(1, 'rgba(18,22,32,0.8)');
   ctx.fillStyle = mg2;
   ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
   for (const p of mtnPts) ctx.lineTo(p[0], p[1]);
   ctx.lineTo(w + 10, waterTop + 6); ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  // the shore's own waterline — the actual land/water boundary, not just the
-  // trees planted on it, follows the same recede curve so the terrain itself
-  // visibly changes instead of just the tree line floating above flat water
+  // the distant horizon line — where the far side of the lake meets the
+  // sky, well behind everything else. Not the shoreline people actually
+  // stand near (that's bankPts below) — this is background.
   const shorePts = [];
   for (let x = -10; x <= w + 10; x += 20) {
     shorePts.push([x, waterTop - shoreRecede(Math.max(0, Math.min(1, x / w)), used)]);
@@ -419,42 +440,64 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     for (const p of shorePts) ctx.lineTo(p[0], p[1] + dy);
   };
 
-  // atmospheric haze: blends the shoreline into the water instead of a hard
-  // cut — a tall, soft band with an extra easing stop for a longer dissolve
-  const haze = ctx.createLinearGradient(0, waterTop - 14, 0, waterTop + 80);
-  haze.addColorStop(0, 'rgba(150,148,168,0.24)');
-  haze.addColorStop(0.22, 'rgba(140,140,160,0.15)');
-  haze.addColorStop(0.5, 'rgba(120,120,140,0.07)');
+  // the real shoreline — the near water's edge right beside the campsite,
+  // just above where the near trees/bushes sit. This is the one that
+  // needs to clearly and fluidly reflect kindling distribution.
+  const bankPts = [];
+  for (let x = -10; x <= w + 10; x += 18) {
+    bankPts.push([x, bankYAt(x / w, used, st.t, fy)]);
+  }
+  if (bankPts[bankPts.length - 1][0] < w + 10) {
+    bankPts.push([w + 10, bankYAt(1, used, st.t, fy)]);
+  }
+  const traceBankTop = (dy) => {
+    ctx.moveTo(bankPts[0][0], bankPts[0][1] + dy);
+    for (const p of bankPts) ctx.lineTo(p[0], p[1] + dy);
+  };
+
+  // atmospheric haze: a subtle blend so the shoreline doesn't end in a hard
+  // cut — kept deliberately faint now, so it reads as soft atmosphere
+  // rather than a second false horizon line competing with the real one
+  const haze = ctx.createLinearGradient(0, waterTop - 8, 0, waterTop + 50);
+  haze.addColorStop(0, 'rgba(150,148,168,0.1)');
+  haze.addColorStop(0.3, 'rgba(140,140,160,0.05)');
   haze.addColorStop(1, 'rgba(120,120,140,0)');
   ctx.fillStyle = haze;
   ctx.beginPath();
-  traceShoreTop(-14);
-  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 80);
+  traceShoreTop(-8);
+  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 50);
   ctx.closePath(); ctx.fill();
 
-  ctx.globalAlpha = 0.5;
-  ctx.fillStyle = 'rgba(190,140,86,0.25)';
+  // the distant horizon's own rim — a real, bright, deliberately visible
+  // line so it's legible as its own boundary, not just implied by the
+  // haze above fading into the lake below
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = 'rgba(214,174,124,0.55)';
   ctx.beginPath();
-  traceShoreTop(-1);
-  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 0.2);
+  traceShoreTop(-1.3);
+  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 1.3);
   ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1;
 
-  // the lake — its top edge is the same receding waterline, so a fuller
-  // kindling's stretch of water genuinely widens instead of just its trees
-  // drifting upward over an unchanged lake
+  // the lake — top edge is the distant horizon, bottom edge is the real
+  // shoreline (bankPts), so a fuller kindling's stretch of water genuinely
+  // widens on both ends instead of just its background trees drifting
   const wg = ctx.createLinearGradient(0, waterTop, 0, bank);
   wg.addColorStop(0, '#12141c'); wg.addColorStop(0.18, '#080b11');
   wg.addColorStop(0.55, '#06080d'); wg.addColorStop(1, '#04060a');
+  const traceLakeBed = () => {
+    traceShoreTop(0);
+    for (let i = bankPts.length - 1; i >= 0; i--) ctx.lineTo(bankPts[i][0], bankPts[i][1]);
+  };
   ctx.fillStyle = wg;
   ctx.beginPath();
-  traceShoreTop(0);
-  ctx.lineTo(w + 10, bank); ctx.lineTo(-10, bank); ctx.closePath(); ctx.fill();
+  traceLakeBed();
+  ctx.closePath(); ctx.fill();
 
   ctx.save();
   ctx.beginPath();
-  traceShoreTop(0);
-  ctx.lineTo(w + 10, bank); ctx.lineTo(-10, bank); ctx.closePath(); ctx.clip();
+  traceLakeBed();
+  ctx.closePath(); ctx.clip();
 
   const rTop = bank - (bank - waterTop) * 0.62;
   const refl = ctx.createLinearGradient(0, bank, 0, rTop);
@@ -507,15 +550,37 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // near bank
+  // mist where the lake meets the near shore — softens the seam between
+  // the two instead of a hard cut, same "blend, don't cut" idea as the
+  // distant horizon's own haze above
+  const bankMist = ctx.createLinearGradient(0, bank - 30, 0, bank + 22);
+  bankMist.addColorStop(0, 'rgba(150,148,168,0)');
+  bankMist.addColorStop(0.6, 'rgba(140,140,158,0.07)');
+  bankMist.addColorStop(1, 'rgba(20,18,16,0.16)');
+  ctx.fillStyle = bankMist;
+  ctx.beginPath();
+  traceBankTop(-30);
+  for (let i = bankPts.length - 1; i >= 0; i--) ctx.lineTo(bankPts[i][0], bankPts[i][1] + 22);
+  ctx.closePath(); ctx.fill();
+
+  // near bank — the real shoreline's own ground, its wavy top edge is
+  // bankPts (kindling-driven), not a flat cut
   const bg2 = ctx.createLinearGradient(0, bank - 4, 0, h + 80);
   bg2.addColorStop(0, '#0b0a09'); bg2.addColorStop(1, '#040404');
-  ctx.fillStyle = bg2; ctx.fillRect(-10, bank - 4, w + 20, h - bank + 90);
+  ctx.fillStyle = bg2;
+  ctx.beginPath();
+  traceBankTop(-4);
+  ctx.lineTo(w + 10, h + 90); ctx.lineTo(-10, h + 90); ctx.closePath(); ctx.fill();
+
   const wl = ctx.createLinearGradient(0, 0, w, 0);
   wl.addColorStop(0, 'rgba(196,150,96,0.04)');
   wl.addColorStop(0.5, 'rgba(255,168,88,' + (0.22 * flick).toFixed(3) + ')');
   wl.addColorStop(1, 'rgba(196,150,96,0.04)');
-  ctx.fillStyle = wl; ctx.fillRect(-10, bank - 5, w + 20, 1.4);
+  ctx.fillStyle = wl;
+  ctx.beginPath();
+  traceBankTop(-0.9);
+  for (let i = bankPts.length - 1; i >= 0; i--) ctx.lineTo(bankPts[i][0], bankPts[i][1] + 0.9);
+  ctx.closePath(); ctx.fill();
   ctx.save();
   ctx.beginPath(); ctx.rect(-10, bank - 4, w + 20, h - bank + 90); ctx.clip();
   const jx = Math.sin(st.t * 3.1) * 1.6, jy = Math.cos(st.t * 2.3) * 1.2;
@@ -525,12 +590,13 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.fillStyle = lit; ctx.fillRect(-10, bank - 4, w + 20, h - bank + 90);
   ctx.restore();
 
-  // pines and low bushes framing the campsite — closer ones are bigger and darker
+  // pines and low bushes framing the campsite — closer ones are bigger and
+  // darker, and each sits right on the real shoreline at its own x
   for (const tr of st.nearTrees) {
     const tx = tr.x * w;
     if (tx < -80 || tx > w + 80) continue;
     const scale = 1.5 - tr.depth * 0.24;
-    const baseY = bank + 22;
+    const baseY = bankYAt(tr.x, used, st.t, fy) + 22;
     const shade = Math.max(0, 1 - Math.abs(tx - fx) / (w * 0.9));
     const bodyColor = `rgba(${10 + shade * 26},${8 + shade * 16},${7 + shade * 9},${Math.max(0.4, 0.95 - tr.depth * 0.13)})`;
 
@@ -582,7 +648,8 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // grass — a warm/cool color mix and a gentle per-blade sway so the
   // ground reads as alive, not a static texture
   for (const tuft of st.tufts) {
-    const gy = bank + 4 + tuft.y * (h - bank) * 0.98;
+    const tuftBank = bankYAt(tuft.x, used, st.t, fy);
+    const gy = tuftBank + 4 + tuft.y * (h - tuftBank) * 0.98;
     const d = 1 - Math.min(1, Math.abs(tuft.x * w - fx) / (w * 0.7));
     const sway = Math.sin(st.t * tuft.sp + tuft.ph) * 1.4;
     const warm = tuft.hue > 0.35;
@@ -594,7 +661,8 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // highlight (same trick as the fire-pit rocks) so they read as rounded
   // pebbles rather than flat dark stones
   for (const pb of st.pebbles) {
-    const px = pb.x * w, py = bank + 6 + pb.y * (h - bank) * 0.9;
+    const pbBank = bankYAt(pb.x, used, st.t, fy);
+    const px = pb.x * w, py = pbBank + 6 + pb.y * (h - pbBank) * 0.9;
     const d = 1 - Math.min(1, Math.abs(px - fx) / (w * 0.6));
     const warm = pb.hue > 0.5;
     ctx.save();
