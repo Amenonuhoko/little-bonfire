@@ -312,6 +312,19 @@ function terrainHill(xFrac) {
   return Math.sin(xFrac * Math.PI + 0.5) * 16 + Math.sin(xFrac * 2 * Math.PI + 2.1) * 9;
 }
 
+// Floors a recede value at 0 without the hard corner a plain Math.max(0, v)
+// would leave — when fill is low, hill+detail can dip slightly negative,
+// and clamping that with a hard max puts a sharp, non-smooth kink right in
+// the middle of an otherwise smooth curve. This blends over `softness` px
+// instead (a quadratic ease matching both value and slope at the seam), so
+// the curve still settles at 0 but without ever visibly creasing.
+function softFloor(v, softness) {
+  if (v >= softness) return v;
+  if (v <= -softness) return 0;
+  const t = (v + softness) / (2 * softness);
+  return softness * t * t;
+}
+
 // The fuller a kindling, the further its stretch of shoreline recedes from
 // the camera — dramatically more so now (45 vs the old 10) so the fill
 // actually reshapes the terrain instead of nudging it. On top of that, the
@@ -326,7 +339,7 @@ function shoreRecede(xFrac, fill) {
   const base = fillAtX(xFrac, fill) * SHORE_RECEDE_MAX;
   const hill = terrainHill(xFrac);
   const detail = Math.sin(xFrac * 15.3 + 1.7) * 4 + Math.sin(xFrac * 37.1 + 4.2) * 2;
-  return Math.max(0, base + hill + detail);
+  return softFloor(base + hill + detail, 6);
 }
 
 // The near shoreline — the water's edge right beside the campsite, not the
@@ -342,7 +355,7 @@ function bankRecede(xFrac, fill) {
   const base = fillAtX(xFrac, fill) * BANK_RECEDE_MAX;
   const hill = terrainHill(xFrac) * BANK_HILL_SCALE;
   const detail = Math.sin(xFrac * 11.7 + 0.4) * 8 + Math.sin(xFrac * 21.3 + 2.8) * 4;
-  return Math.max(0, base + hill + detail);
+  return softFloor(base + hill + detail, 10);
 }
 function bankYAt(xFrac, fill, t, fy) {
   const xf = Math.max(0, Math.min(1, xFrac));
