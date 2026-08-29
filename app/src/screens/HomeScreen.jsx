@@ -36,13 +36,18 @@ export default function HomeScreen({
             onPointerDown={stop}
             onPointerUp={stop}
             style={{
-              display: 'block', padding: 15, textAlign: 'center', textDecoration: 'none', borderRadius: 2,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+              padding: 15, textDecoration: 'none', borderRadius: 2,
               border: '1px solid rgba(194,161,115,.45)',
               background: 'linear-gradient(180deg,rgba(194,161,115,.18),rgba(194,161,115,.05))',
               color: '#e8dcc4', fontSize: 13.5, fontWeight: 500, letterSpacing: '.03em',
             }}
           >
-            paypal.me/skytale
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }} aria-hidden="true">
+              <path d="M7.5 3h6.7c3.2 0 5.4 1.9 5.4 5 0 4-2.9 6.6-7.1 6.6h-2.7L8.6 21H4.8L7.5 3Z" fill="currentColor" opacity=".55" />
+              <path d="M9.7 6.2h6.1c1 1 1.5 2.3 1.2 3.9-.5 3-3 4.9-6.5 4.9H8.2l-1 6.4H3.4L6.1 3.6h4.1c2.6 0 4.4 1 4.8 2.9" fill="currentColor" opacity=".9" />
+            </svg>
+            Support me on PayPal
           </a>
           <div style={{ textAlign: 'center', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.3)' }}>
             touch anywhere to return
