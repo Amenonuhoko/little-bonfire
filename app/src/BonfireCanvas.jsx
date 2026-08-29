@@ -30,7 +30,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     flare() { if (s.current) s.current.flare = 1; },
     addStar() {
       if (!s.current) return;
-      s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0 });
+      s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0, hue: Math.random() });
     },
     // finds the ember (if any) whose fixed clickable zone contains
     // (px, py), in canvas-local coordinates. Tested against the ember's
@@ -54,7 +54,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     const st = {
       ctx, w: 0, h: 0, cam: 0, flare: 0, t: 0,
       embers: [], stars: [], tufts: [], sparks: [], smoke: [], noisePattern: null, raf: 0,
-      milkyway: [], fireflies: [], pebbles: [], farTrees: [], nearTrees: [],
+      milkyway: [], pebbles: [], nearTrees: [],
     };
     s.current = st;
 
@@ -73,12 +73,15 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
 
     st.noisePattern = makeNoisePattern(ctx);
 
-    for (let i = 0; i < 46; i++) {
-      st.tufts.push({ x: Math.random(), y: Math.random(), h: 4 + Math.random() * 9, l: (Math.random() - 0.5) * 5 });
+    for (let i = 0; i < 85; i++) {
+      st.tufts.push({
+        x: Math.random(), y: Math.random(), h: 3 + Math.random() * 12, l: (Math.random() - 0.5) * 6,
+        hue: Math.random(), sp: 0.3 + Math.random() * 0.4, ph: Math.random() * 6.28,
+      });
     }
     for (let i = 0; i < 150; i++) {
       const likes = Math.round(6 + Math.pow(Math.random(), 2.6) * 240);
-      st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28 });
+      st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28, hue: Math.random() });
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
@@ -94,26 +97,14 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
         a: 0.02 + Math.random() * 0.05,
       });
     }
-    // fireflies drifting low over the ground, away from the fire itself
-    for (let i = 0; i < 9; i++) {
-      const side = Math.random() < 0.5 ? -1 : 1;
-      st.fireflies.push({
-        bx: 0.5 + side * (0.28 + Math.random() * 0.34),
-        by: 0.55 + Math.random() * 0.4,
-        r: 5 + Math.random() * 10,
-        sp: 0.15 + Math.random() * 0.2,
-        ph: Math.random() * 6.28,
-        ph2: Math.random() * 6.28,
+    // ground pebbles — small rounded stones in a randomized warm-gray/tan
+    // palette, each with its own lit-side highlight so they read as
+    // rounded pebbles rather than flat dark stones
+    for (let i = 0; i < 58; i++) {
+      st.pebbles.push({
+        x: Math.random(), y: Math.random(), r: 0.7 + Math.random() * 2.1,
+        hue: Math.random(), rot: Math.random() * 6.28,
       });
-    }
-    // small ground texture — pebbles and fallen leaves
-    for (let i = 0; i < 34; i++) {
-      st.pebbles.push({ x: Math.random(), y: Math.random(), r: 0.8 + Math.random() * 1.8, w: Math.random() < 0.4 });
-    }
-    // distant pine silhouettes lining the far shore
-    for (let i = 0; i < 22; i++) {
-      const x = i / 21 + (Math.random() - 0.5) * 0.03;
-      st.farTrees.push({ x, hh: 0.5 + Math.random() * 0.9, w: 0.55 + Math.random() * 0.5 });
     }
     // pines and low bushes framing the campsite at each screen edge — an
     // even mix reads more like undergrowth than a wall of identical trees
@@ -211,7 +202,11 @@ function mkEmber(st, message) {
     // the fixed spot a tap actually registers against
     ax: 8 + Math.random() * 8, ay: 6 + Math.random() * 6,
     sp: 0.05 + Math.random() * 0.1, ph: Math.random() * 6.28,
-    r: 1.5 + Math.random() * 2, a: 0.55 + Math.random() * 0.4,
+    r: 2.4 + Math.random() * 2.6, a: 0.55 + Math.random() * 0.4,
+    // a fixed, randomized silhouette (radius multiplier per vertex) so
+    // every ember has its own irregular, coal-like shape instead of a
+    // perfect circle — drawn in the embers loop below, in draw()
+    shape: Array.from({ length: 7 + Math.floor(Math.random() * 2) }, () => 0.7 + Math.random() * 0.6),
   };
 }
 
@@ -266,8 +261,10 @@ function kindlingFillFrac(id, used) {
   return Math.max(0, Math.min(1, (used[id] || 0) / cap));
 }
 
-// Fill at an arbitrary x fraction (0..1), linearly interpolated between the
-// five kindling's center points (in their fixed disgrace->grace order).
+// Fill at an arbitrary x fraction (0..1), smoothly eased between the five
+// kindling's center points (in their fixed disgrace->grace order) — a
+// cosine ease rather than a linear lerp, so the curve through the control
+// points is an actual curve, not straight segments joined at each kindling.
 function fillAtX(xFrac, used) {
   const n = KINDLING_IDS.length;
   const centers = KINDLING_IDS.map((_, i) => (i + 0.5) / n);
@@ -277,19 +274,25 @@ function fillAtX(xFrac, used) {
   for (let i = 0; i < n - 1; i++) {
     if (xFrac >= centers[i] && xFrac <= centers[i + 1]) {
       const t = (xFrac - centers[i]) / (centers[i + 1] - centers[i]);
-      return fills[i] + (fills[i + 1] - fills[i]) * t;
+      const eased = (1 - Math.cos(t * Math.PI)) / 2;
+      return fills[i] + (fills[i + 1] - fills[i]) * eased;
     }
   }
   return 0.5;
 }
 
 // The fuller a kindling, the further its stretch of shoreline recedes from
-// the camera. Only ever recedes (moves up) from the baseline — it never
-// dips below it, so the tree line can't end up looking like it's standing
-// in the water.
-const SHORE_RECEDE_MAX = 10;
+// the camera — dramatically more so now (45 vs the old 10) so the fill
+// actually reshapes the terrain instead of nudging it. A layer of organic
+// noise, independent of fill, keeps it from ever reading as one clean
+// wave even where the fill itself is flat. Only ever recedes (moves up)
+// from the baseline — it never dips below it, so the tree line can't end
+// up looking like it's standing in the water.
+const SHORE_RECEDE_MAX = 45;
 function shoreRecede(xFrac, used) {
-  return fillAtX(xFrac, used) * SHORE_RECEDE_MAX;
+  const base = fillAtX(xFrac, used) * SHORE_RECEDE_MAX;
+  const noise = Math.sin(xFrac * 15.3 + 1.7) * 7 + Math.sin(xFrac * 37.1 + 4.2) * 3.5;
+  return Math.max(0, base + noise);
 }
 
 function draw(st, screen, sky, revealed, used, activeEmberId) {
@@ -358,20 +361,21 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     const skyBoost = 0.84 + 0.32 * fillAtX(st_.x, used);
     const b = Math.min(1, st_.b * skyBoost);
     const tw = 0.72 + 0.28 * Math.sin(st.t * (0.5 + b) + st_.tw);
-    ctx.globalAlpha = (0.13 + 0.72 * b * b) * tw;
-    ctx.fillStyle = b > 0.62 ? '#fdf3dc' : b > 0.3 ? '#e8dcc4' : '#b9b2a3';
-    const r = 0.45 + 1.5 * b;
+    const warm = st_.hue > 0.5;
+    ctx.globalAlpha = (0.24 + 0.76 * b * b) * tw;
+    ctx.fillStyle = b > 0.55 ? (warm ? '#fff6e2' : '#eef4ff') : b > 0.28 ? (warm ? '#e8dcc4' : '#cfdcee') : '#b9b2a3';
+    const r = 0.7 + 2.3 * b;
     ctx.beginPath(); ctx.arc(st_.x * w, y, r, 0, 6.2832); ctx.fill();
-    if (b > 0.55) {
-      ctx.globalAlpha = (0.05 + 0.14 * b) * tw;
+    if (b > 0.38) {
+      ctx.globalAlpha = (0.08 + 0.2 * b) * tw;
       ctx.beginPath(); ctx.arc(st_.x * w, y, r * 3.2, 0, 6.2832); ctx.fill();
     }
-    if (b > 0.82) {
-      ctx.globalAlpha = 0.16 * tw;
-      ctx.lineWidth = 0.6; ctx.strokeStyle = '#fdf3dc';
+    if (b > 0.64) {
+      ctx.globalAlpha = 0.22 * tw;
+      ctx.lineWidth = 0.7; ctx.strokeStyle = warm ? '#fff6e2' : '#eef4ff';
       ctx.beginPath();
-      ctx.moveTo(st_.x * w - r * 3.4, y); ctx.lineTo(st_.x * w + r * 3.4, y);
-      ctx.moveTo(st_.x * w, y - r * 3.4); ctx.lineTo(st_.x * w, y + r * 3.4);
+      ctx.moveTo(st_.x * w - r * 3.6, y); ctx.lineTo(st_.x * w + r * 3.6, y);
+      ctx.moveTo(st_.x * w, y - r * 3.6); ctx.lineTo(st_.x * w, y + r * 3.6);
       ctx.stroke();
     }
   }
@@ -380,16 +384,19 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // distant mountains — a soft, hazy ridge well behind the tree line, faded
   // at both edges so it dissolves into the sky rather than reading as a cutout
   ctx.save();
-  ctx.filter = 'blur(3px)';
+  ctx.filter = 'blur(5px)';
   const mtnPts = [];
   for (let x = -10; x <= w + 10; x += 24) {
     const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), used);
     mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10 - recede]);
   }
   const mtnTopY = Math.min(...mtnPts.map((p) => p[1]));
-  const mg2 = ctx.createLinearGradient(0, mtnTopY, 0, waterTop + 6);
+  // gradient starts well above the ridge's own highest point so the fade
+  // into the star field is a long dissolve, not a sharp edge
+  const mg2 = ctx.createLinearGradient(0, mtnTopY - 60, 0, waterTop + 6);
   mg2.addColorStop(0, 'rgba(13,16,24,0)');
-  mg2.addColorStop(0.35, 'rgba(13,16,24,0.45)');
+  mg2.addColorStop(0.3, 'rgba(13,16,24,0.14)');
+  mg2.addColorStop(0.62, 'rgba(13,16,24,0.42)');
   mg2.addColorStop(1, 'rgba(13,16,24,0.6)');
   ctx.fillStyle = mg2;
   ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
@@ -412,30 +419,17 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     for (const p of shorePts) ctx.lineTo(p[0], p[1] + dy);
   };
 
-  // far shore — a tree line of small pine silhouettes, softened at the base
-  ctx.save();
-  ctx.filter = 'blur(0.6px)';
-  ctx.fillStyle = '#080b10';
-  ctx.beginPath(); ctx.moveTo(-10, waterTop + 4);
-  for (const ft of st.farTrees) {
-    const x = ft.x * w, ph = waterTop - 3 - shoreRecede(ft.x, used);
-    const th = 10 + ft.hh * 16, tw2 = 7 * ft.w;
-    ctx.lineTo(x - tw2, ph);
-    ctx.lineTo(x, ph - th);
-    ctx.lineTo(x + tw2, ph);
-  }
-  ctx.lineTo(w + 10, waterTop + 4); ctx.closePath(); ctx.fill();
-  ctx.restore();
-
-  // atmospheric haze: blends the shoreline into the water instead of a hard cut
-  const haze = ctx.createLinearGradient(0, waterTop - 10, 0, waterTop + 46);
-  haze.addColorStop(0, 'rgba(150,148,168,0.22)');
-  haze.addColorStop(0.4, 'rgba(120,120,140,0.1)');
+  // atmospheric haze: blends the shoreline into the water instead of a hard
+  // cut — a tall, soft band with an extra easing stop for a longer dissolve
+  const haze = ctx.createLinearGradient(0, waterTop - 14, 0, waterTop + 80);
+  haze.addColorStop(0, 'rgba(150,148,168,0.24)');
+  haze.addColorStop(0.22, 'rgba(140,140,160,0.15)');
+  haze.addColorStop(0.5, 'rgba(120,120,140,0.07)');
   haze.addColorStop(1, 'rgba(120,120,140,0)');
   ctx.fillStyle = haze;
   ctx.beginPath();
-  traceShoreTop(-10);
-  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 46);
+  traceShoreTop(-14);
+  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 80);
   ctx.closePath(); ctx.fill();
 
   ctx.globalAlpha = 0.5;
@@ -492,7 +486,8 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     const y = bank - 4 - ((st_.x * 7919) % 1000) / 1000 * (bank - waterTop) * 0.8;
     ctx.globalAlpha = 0.1 + 0.22 * st_.b;
     ctx.fillStyle = '#e9dcc0';
-    ctx.fillRect(st_.x * w - 3 + Math.sin(st.t * 1.1 + st_.tw) * 3, y, 6, 1.1);
+    // slow, small drift — a calm reflective surface, not a jitter
+    ctx.fillRect(st_.x * w - 3 + Math.sin(st.t * 0.3 + st_.tw) * 1, y, 6, 1.1);
   }
   ctx.restore();
   for (let i = 0; i < 26; i++) {
@@ -584,19 +579,36 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     }
   }
 
+  // grass — a warm/cool color mix and a gentle per-blade sway so the
+  // ground reads as alive, not a static texture
   for (const tuft of st.tufts) {
     const gy = bank + 4 + tuft.y * (h - bank) * 0.98;
     const d = 1 - Math.min(1, Math.abs(tuft.x * w - fx) / (w * 0.7));
-    ctx.strokeStyle = 'rgba(196,134,72,' + (0.05 + 0.2 * d) + ')'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(tuft.x * w, gy); ctx.lineTo(tuft.x * w + tuft.l, gy - tuft.h); ctx.stroke();
+    const sway = Math.sin(st.t * tuft.sp + tuft.ph) * 1.4;
+    const warm = tuft.hue > 0.35;
+    ctx.strokeStyle = warm ? `rgba(196,134,72,${(0.05 + 0.22 * d).toFixed(3)})` : `rgba(120,138,86,${(0.05 + 0.2 * d).toFixed(3)})`;
+    ctx.lineWidth = 0.8 + tuft.hue * 0.6;
+    ctx.beginPath(); ctx.moveTo(tuft.x * w, gy); ctx.lineTo(tuft.x * w + tuft.l + sway, gy - tuft.h); ctx.stroke();
   }
-  // small stones and fallen leaves scattered near the fire
+  // pebbles — a randomized warm-gray/tan palette with a small lit-side
+  // highlight (same trick as the fire-pit rocks) so they read as rounded
+  // pebbles rather than flat dark stones
   for (const pb of st.pebbles) {
     const px = pb.x * w, py = bank + 6 + pb.y * (h - bank) * 0.9;
     const d = 1 - Math.min(1, Math.abs(px - fx) / (w * 0.6));
-    ctx.globalAlpha = 0.25 + 0.35 * d;
-    ctx.fillStyle = pb.w ? 'rgba(190,110,60,0.5)' : 'rgba(70,64,58,0.8)';
-    ctx.beginPath(); ctx.ellipse(px, py, pb.r * 1.6, pb.r, 0, 0, 6.2832); ctx.fill();
+    const warm = pb.hue > 0.5;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(pb.rot);
+    ctx.fillStyle = warm
+      ? `rgba(${120 + pb.hue * 40},${96 + pb.hue * 30},${70 + pb.hue * 20},${(0.3 + 0.4 * d).toFixed(3)})`
+      : `rgba(${80 + pb.hue * 30},${76 + pb.hue * 28},${72 + pb.hue * 26},${(0.3 + 0.4 * d).toFixed(3)})`;
+    ctx.beginPath(); ctx.ellipse(0, 0, pb.r * 1.5, pb.r, 0, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 0.12 + 0.22 * d;
+    ctx.fillStyle = 'rgba(240,190,130,1)';
+    ctx.beginPath(); ctx.ellipse(-pb.r * 0.35, -pb.r * 0.3, pb.r * 0.55, pb.r * 0.36, 0, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
   ctx.globalAlpha = 1;
   // rocks ringing the fire pit — shaded and shadowed like rounded stones,
@@ -637,41 +649,44 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     ctx.fill();
   }
 
-  // fireflies drifting low over the ground, well away from the fire itself
-  ctx.globalCompositeOperation = 'lighter';
-  for (const fl of st.fireflies) {
-    const fx2 = fl.bx * w + Math.sin(st.t * fl.sp + fl.ph) * fl.r * 2.4;
-    const fy2 = fl.by * h + Math.cos(st.t * fl.sp * 0.7 + fl.ph2) * fl.r;
-    const pulse = 0.3 + 0.7 * Math.max(0, Math.sin(st.t * (0.8 + fl.sp) + fl.ph));
-    ctx.globalAlpha = pulse * 0.55;
-    ctx.fillStyle = '#d9e07a';
-    ctx.beginPath(); ctx.arc(fx2, fy2, 1.1, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = pulse * 0.14;
-    ctx.beginPath(); ctx.arc(fx2, fy2, 4.2, 0, 6.2832); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
-
   // embers: live messages, drifting gently in place within a fixed tap
   // zone — a touch bolder once the fire has been touched once, rewarding
-  // the tap with a clearer ember field
+  // the tap with a clearer ember field. Each is an irregular, ember-shaped
+  // blob (its own randomized silhouette from mkEmber, gently alive via a
+  // per-vertex wobble) rather than a plain circle, with a bright hot core
+  // inside the kindling-colored body so it reads as glowing, not flat.
   const emberBoost = revealed ? 1.55 : 1;
   for (const e of st.embers) {
     const bx = e.x * w, by = e.y;
     const x = bx + Math.sin(st.t * e.sp + e.ph) * e.ax;
     const y = by + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
-    const a = Math.min(1, e.a * (0.62 + 0.38 * Math.sin(st.t * 0.42 + e.ph)) * emberBoost);
+    const a = Math.min(1, (e.a * 0.6 + 0.4) * (0.7 + 0.3 * Math.sin(st.t * 0.42 + e.ph)) * emberBoost);
     const r = e.r * emberBoost;
+
+    const traceEmberBody = (scale) => {
+      const n = e.shape.length;
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const wobble = 1 + Math.sin(st.t * 1.6 + e.ph + i * 1.7) * 0.06;
+        const rad = r * scale * e.shape[i % n] * wobble;
+        const ang = (i / n) * 6.2832;
+        const px = x + Math.cos(ang) * rad, py = y + Math.sin(ang) * rad * 0.92;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    };
+
+    ctx.globalAlpha = Math.max(0, a * (revealed ? 0.3 : 0.2));
+    traceEmberBody(4.2); ctx.fillStyle = e.c; ctx.fill();
     ctx.globalAlpha = Math.max(0, a);
-    ctx.fillStyle = e.c;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = Math.max(0, a * (revealed ? 0.22 : 0.14));
-    ctx.beginPath(); ctx.arc(x, y, r * 3.8, 0, 6.2832); ctx.fill();
+    traceEmberBody(1); ctx.fillStyle = e.c; ctx.fill();
+    ctx.globalAlpha = Math.max(0, a * 0.9);
+    traceEmberBody(0.48); ctx.fillStyle = '#ffe9c2'; ctx.fill();
 
     // a faint dashed guide around the ember's fixed rest point — exactly
     // where a tap lands and still counts, regardless of the drift above
     if (revealed) {
-      ctx.globalAlpha = Math.max(0, a * 0.16);
+      ctx.globalAlpha = Math.max(0, a * 0.18);
       ctx.strokeStyle = e.c; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
       ctx.beginPath(); ctx.arc(bx, by, EMBER_TAP_RADIUS, 0, 6.2832); ctx.stroke();
       ctx.setLineDash([]);
@@ -689,16 +704,28 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   }
   ctx.globalAlpha = 1;
 
-  // the fire — ambient orange bloom
-  const R = 215 * flick;
-  const rg = ctx.createRadialGradient(fx, fy - 30, 2, fx, fy - 30, R);
-  rg.addColorStop(0, 'rgba(255,164,72,0.34)');
-  rg.addColorStop(0.09, 'rgba(255,128,38,0.2)');
-  rg.addColorStop(0.24, 'rgba(212,98,28,0.1)');
-  rg.addColorStop(0.5, 'rgba(162,74,22,0.04)');
-  rg.addColorStop(0.76, 'rgba(140,64,18,0.015)');
+  // flame height — computed here so both the halo below and the ribbons
+  // further down share the exact same breathing/flare motion
+  const H = 320 * (0.92 + 0.14 * Math.sin(st.t * 2.1)) * (1 + st.flare * 0.4);
+
+  // the fire's ambient halo — stretched into a tall ellipse that tracks the
+  // real flame height, instead of an independent static circle, so it
+  // visibly conforms to (and breathes with) the actual flame silhouette
+  const haloRx = 108 * flick;
+  const haloRy = Math.max(haloRx * 1.6, H * 0.88);
+  const haloCy = fy - 6 - haloRy * 0.62;
+  ctx.save();
+  ctx.translate(fx, haloCy);
+  ctx.scale(1, haloRy / haloRx);
+  const rg = ctx.createRadialGradient(0, 0, 2, 0, 0, haloRx);
+  rg.addColorStop(0, 'rgba(255,164,72,0.36)');
+  rg.addColorStop(0.09, 'rgba(255,128,38,0.22)');
+  rg.addColorStop(0.24, 'rgba(212,98,28,0.11)');
+  rg.addColorStop(0.5, 'rgba(162,74,22,0.045)');
+  rg.addColorStop(0.76, 'rgba(140,64,18,0.016)');
   rg.addColorStop(1, 'rgba(140,64,18,0)');
-  ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(fx, fy - 30, R, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(0, 0, haloRx, 0, 6.2832); ctx.fill();
+  ctx.restore();
 
   // ash pile and half-burnt logs, built up as a rounded mound with real shadow
   ctx.globalAlpha = 0.5;
@@ -775,7 +802,6 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // ash mound's own curve and tapers to a point instead of a flat-cut
   // rectangle, so the fire licks up out of the wood rather than sitting
   // on it like a block
-  const H = 320 * (0.92 + 0.14 * Math.sin(st.t * 2.1)) * (1 + st.flare * 0.4);
   for (let r0 = 0; r0 < 11; r0++) {
     const ph = r0 * 1.9, sp = 1.25 + r0 * 0.27, sway = 0.4 + (r0 % 3) * 0.45;
     const hgt = H * (0.4 + 0.6 * (((r0 * 37) % 11) / 10));
