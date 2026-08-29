@@ -58,11 +58,11 @@ export default function ReadScreen({ ember, onBack, onSwipeNext }) {
         <div
           onPointerDown={stop}
           onPointerUp={(e) => { stop(e); onBack(); }}
-          style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer' }}
+          style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           ← back to the fire
         </div>
-        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.1em', color: 'rgba(230,221,203,.4)' }}>
+        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.1em', color: 'rgba(230,221,203,.4)', textAlign: 'right', minWidth: 0, textShadow: '0 0 8px rgba(9,10,12,.9)' }}>
           drawn at random · swipe or scroll for another
         </div>
       </div>
