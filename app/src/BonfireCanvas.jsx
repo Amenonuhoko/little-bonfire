@@ -571,18 +571,20 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.closePath(); ctx.clip();
 
   const rTop = bank - (bank - waterTop) * 0.62;
-  const refl = ctx.createLinearGradient(0, bank, 0, rTop);
-  refl.addColorStop(0, 'rgba(255,140,50,0.22)');
-  refl.addColorStop(0.35, 'rgba(226,106,34,0.08)');
-  refl.addColorStop(1, 'rgba(200,88,28,0)');
+  // the flame's reflection — a soft radial glow with no hard silhouette, so
+  // it reads as light spreading into the water rather than a sharply
+  // clipped geometric wedge sitting on top of the lake
+  const reflCy = bank - (bank - rTop) * 0.55;
+  const reflR = 34 * flick;
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(fx - 38 * flick, bank);
-  ctx.quadraticCurveTo(fx - 22, rTop + 30, fx - 7, rTop);
-  ctx.lineTo(fx + 7, rTop);
-  ctx.quadraticCurveTo(fx + 22, rTop + 30, fx + 38 * flick, bank);
-  ctx.closePath(); ctx.clip();
-  ctx.fillStyle = refl; ctx.fillRect(fx - 70, rTop, 140, bank - rTop);
+  ctx.translate(fx, reflCy);
+  ctx.scale(1, (bank - rTop) / reflR / 1.7);
+  const refl = ctx.createRadialGradient(0, 0, 0, 0, 0, reflR);
+  refl.addColorStop(0, 'rgba(255,150,60,0.26)');
+  refl.addColorStop(0.4, 'rgba(230,110,36,0.1)');
+  refl.addColorStop(1, 'rgba(200,88,28,0)');
+  ctx.fillStyle = refl;
+  ctx.beginPath(); ctx.arc(0, 0, reflR, 0, 6.2832); ctx.fill();
   ctx.restore();
   for (let i = 0; i < 14; i++) {
     const f = (i + 0.5) / 14;
@@ -604,19 +606,24 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     ctx.fillRect(st_.x * w - 3 + Math.sin(st.t * 0.3 + st_.tw) * 1, y, 6, 1.1);
   }
   ctx.restore();
+  // glints: a stable per-line hash breaks up what would otherwise be 26
+  // perfectly evenly-spaced rows (a "venetian blind" scanline pattern) into
+  // irregular streaks of varying position, width and thickness
   for (let i = 0; i < 26; i++) {
-    const f = i / 26;
+    const hash = Math.sin(i * 12.9898) * 43758.5453;
+    const jitter = hash - Math.floor(hash);
+    const f = (i + jitter * 0.8) / 26;
     const y = waterTop + 6 + f * (bank - waterTop - 6);
     const off = Math.sin(st.t * 0.5 + i * 1.7) * 40;
-    const sgw = w * (0.35 + 0.5 * Math.abs(Math.sin(i * 1.3)));
+    const sgw = w * (0.28 + 0.5 * jitter);
     const sx = fx + off - sgw / 2;
     const sh = ctx.createLinearGradient(sx, 0, sx + sgw, 0);
-    const sa = (0.03 + 0.07 * (1 - f)).toFixed(3);
+    const sa = (0.02 + 0.06 * (1 - f) * (0.35 + 0.65 * jitter)).toFixed(3);
     sh.addColorStop(0, 'rgba(159,176,196,0)');
     sh.addColorStop(0.5, 'rgba(159,176,196,' + sa + ')');
     sh.addColorStop(1, 'rgba(159,176,196,0)');
     ctx.globalAlpha = 1; ctx.fillStyle = sh;
-    ctx.fillRect(sx, y, sgw, 0.8);
+    ctx.fillRect(sx, y, sgw, 0.5 + jitter * 0.9);
   }
   ctx.restore();
   ctx.globalAlpha = 1;
