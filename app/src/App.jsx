@@ -47,6 +47,7 @@ export default function App() {
 
   const [readingEmber, setReadingEmber] = useState(null);
   const [viewEmber, setViewEmber] = useState(null); // the ember shown on the dedicated read screen
+  const [moonSeat, setMoonSeat] = useState(false); // the moon Easter egg card
 
   const fireRef = useRef(null);
   const dragRef = useRef(null);
@@ -77,6 +78,7 @@ export default function App() {
   const tapFire = () => setRevealed((r) => !r);
   const goPickDrop = () => setScreen('pick');
   const dismissEmber = () => setReadingEmber(null);
+  const dismissMoon = () => setMoonSeat(false);
 
   // draws a random message, avoiding ones already seen this browse unless
   // every message has been shown, in which case it cycles back around
@@ -120,8 +122,10 @@ export default function App() {
     dragRef.current = null;
     if (d && d.moved < 6) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const hit = fireRef.current?.hitTestEmber(d.x - rect.left, d.y - rect.top);
+      const px = d.x - rect.left, py = d.y - rect.top;
+      const hit = fireRef.current?.hitTestEmber(px, py);
       if (hit) setReadingEmber(hit);
+      else if (fireRef.current?.hitTestMoon(px, py)) setMoonSeat(true);
       else tapFire();
     } else setSky((v) => (v > 0.4 ? 1 : 0));
   };
@@ -216,6 +220,8 @@ export default function App() {
             readingEmber={readingEmber}
             onDismissEmber={dismissEmber}
             onHelpedEmber={helpedReadingEmber}
+            moonSeat={moonSeat}
+            onDismissMoon={dismissMoon}
             onWheel={onWheel}
             onDown={onDown}
             onMove={onMove}
