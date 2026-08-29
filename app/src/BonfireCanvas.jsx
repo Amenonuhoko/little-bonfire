@@ -252,23 +252,41 @@ function makeNoisePattern(ctx) {
   return ctx.createPattern(n, 'repeat');
 }
 
-// How full a kindling reads, 0..1, for the shoreline/skyline mapping below.
-// Grace has no cap, so it's judged against a soft reference instead.
-function kindlingFillFrac(id, used) {
+// How full a kindling actually is right now, 0..1 — the real, unsmoothed
+// target. Grace has no cap, so it's judged against a soft reference
+// instead. Every terrain function below reads a *smoothed* version of
+// this (st.fillSmooth, eased toward this target once per frame in draw())
+// rather than this directly, so the terrain visibly animates toward a new
+// shape when a drop/helped changes the data instead of snapping to it.
+function rawKindlingFillFrac(id, used) {
   if (!used) return 0.5;
   const total = totalFor(id);
   const cap = total > 0 ? total : 50;
   return Math.max(0, Math.min(1, (used[id] || 0) / cap));
 }
 
+// Eases st.fillSmooth[id] toward each kindling's real fill fraction —
+// call once per frame, before anything reads terrain shape this frame.
+function updateFillSmooth(st, used) {
+  st.fillSmooth = st.fillSmooth || {};
+  for (const id of KINDLING_IDS) {
+    const target = rawKindlingFillFrac(id, used);
+    const cur = st.fillSmooth[id] ?? target;
+    st.fillSmooth[id] = cur + (target - cur) * 0.05;
+  }
+  return st.fillSmooth;
+}
+
 // Fill at an arbitrary x fraction (0..1), smoothly eased between the five
 // kindling's center points (in their fixed disgrace->grace order) — a
 // cosine ease rather than a linear lerp, so the curve through the control
 // points is an actual curve, not straight segments joined at each kindling.
-function fillAtX(xFrac, used) {
+// `fill` is a {kindlingId: 0..1} map — st.fillSmooth from the frame's
+// updateFillSmooth() call, not raw used counts.
+function fillAtX(xFrac, fill) {
   const n = KINDLING_IDS.length;
   const centers = KINDLING_IDS.map((_, i) => (i + 0.5) / n);
-  const fills = KINDLING_IDS.map((id) => kindlingFillFrac(id, used));
+  const fills = KINDLING_IDS.map((id) => fill[id] ?? 0.5);
   if (xFrac <= centers[0]) return fills[0];
   if (xFrac >= centers[n - 1]) return fills[n - 1];
   for (let i = 0; i < n - 1; i++) {
@@ -289,8 +307,8 @@ function fillAtX(xFrac, used) {
 // from the baseline — it never dips below it, so the tree line can't end
 // up looking like it's standing in the water.
 const SHORE_RECEDE_MAX = 45;
-function shoreRecede(xFrac, used) {
-  const base = fillAtX(xFrac, used) * SHORE_RECEDE_MAX;
+function shoreRecede(xFrac, fill) {
+  const base = fillAtX(xFrac, fill) * SHORE_RECEDE_MAX;
   const noise = Math.sin(xFrac * 15.3 + 1.7) * 7 + Math.sin(xFrac * 37.1 + 4.2) * 3.5;
   return Math.max(0, base + noise);
 }
@@ -301,14 +319,14 @@ function shoreRecede(xFrac, used) {
 // its own independent noise (so it doesn't just mirror that curve), and a
 // slow traveling-wave term for a little live motion — "fluid, not stiff."
 const BANK_RECEDE_MAX = 70;
-function bankRecede(xFrac, used) {
-  const base = fillAtX(xFrac, used) * BANK_RECEDE_MAX;
+function bankRecede(xFrac, fill) {
+  const base = fillAtX(xFrac, fill) * BANK_RECEDE_MAX;
   const noise = Math.sin(xFrac * 11.7 + 0.4) * 11 + Math.sin(xFrac * 29.3 + 2.8) * 5.5;
   return Math.max(0, base + noise);
 }
-function bankYAt(xFrac, used, t, fy) {
+function bankYAt(xFrac, fill, t, fy) {
   const xf = Math.max(0, Math.min(1, xFrac));
-  return fy - 34 - bankRecede(xf, used) + Math.sin(t * 0.12 + xf * 6) * 2.5;
+  return fy - 34 - bankRecede(xf, fill) + Math.sin(t * 0.12 + xf * 6) * 2.5;
 }
 
 function draw(st, screen, sky, revealed, used, activeEmberId) {
@@ -318,6 +336,11 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   st.cam += (target - st.cam) * 0.16;
   st.flare *= 0.955;
   const camY = st.cam * h * 0.85;
+  // the terrain's own view of "how full is each kindling" — eased toward
+  // the real value every frame, so a drop/helped animates the terrain
+  // into its new shape instead of snapping. Everything below that shapes
+  // the shoreline/skyline reads this, never `used` directly.
+  const fill = updateFillSmooth(st, used);
   // bank sits well above fy so the whole rock ring (which reaches above fy
   // on its far side) stays on the ground instead of poking into the lake.
   // This is the representative (center-x) value, used where a single
@@ -325,7 +348,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // the actual boundary drawn on screen is bankPts/traceBankTop below,
   // which varies per-x with kindling fill instead of being flat.
   const fx = w / 2, fy = h * 0.68, waterTop = h * 0.24;
-  const bank = bankYAt(0.5, used, st.t, fy);
+  const bank = bankYAt(0.5, fill, st.t, fy);
   const flick = 1 + Math.sin(st.t * 7) * 0.05 + Math.sin(st.t * 3.3) * 0.06 + st.flare * 0.9;
 
   ctx.clearRect(0, 0, w, h);
@@ -376,10 +399,14 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
 
   // stars: spent messages. brightness = how many people spent them, nudged
   // a little brighter over whichever kindling's zone is currently fullest —
-  // the skyline echoing the same state as the shoreline below it
+  // the skyline echoing the same state as the shoreline below it. Kept a
+  // clear margin above the horizon (rather than reaching all the way down
+  // to it) so the star field stays visually distinct from the skyline
+  // instead of the two crowding together.
+  const starZoneBottom = waterTop - 55;
   for (const st_ of st.stars) {
-    const y = -h * 0.95 + st_.y * (waterTop + h * 0.95);
-    const skyBoost = 0.84 + 0.32 * fillAtX(st_.x, used);
+    const y = -h * 0.95 + st_.y * (starZoneBottom + h * 0.95);
+    const skyBoost = 0.84 + 0.32 * fillAtX(st_.x, fill);
     const b = Math.min(1, st_.b * skyBoost);
     const tw = 0.72 + 0.28 * Math.sin(st.t * (0.5 + b) + st_.tw);
     const warm = st_.hue > 0.5;
@@ -410,7 +437,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.filter = 'blur(3.5px)';
   const mtnPts = [];
   for (let x = -10; x <= w + 10; x += 24) {
-    const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), used);
+    const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), fill);
     mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10 - recede]);
   }
   const mtnTopY = Math.min(...mtnPts.map((p) => p[1]));
@@ -430,10 +457,10 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // stand near (that's bankPts below) — this is background.
   const shorePts = [];
   for (let x = -10; x <= w + 10; x += 20) {
-    shorePts.push([x, waterTop - shoreRecede(Math.max(0, Math.min(1, x / w)), used)]);
+    shorePts.push([x, waterTop - shoreRecede(Math.max(0, Math.min(1, x / w)), fill)]);
   }
   if (shorePts[shorePts.length - 1][0] < w + 10) {
-    shorePts.push([w + 10, waterTop - shoreRecede(1, used)]);
+    shorePts.push([w + 10, waterTop - shoreRecede(1, fill)]);
   }
   const traceShoreTop = (dy) => {
     ctx.moveTo(shorePts[0][0], shorePts[0][1] + dy);
@@ -445,10 +472,10 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // needs to clearly and fluidly reflect kindling distribution.
   const bankPts = [];
   for (let x = -10; x <= w + 10; x += 18) {
-    bankPts.push([x, bankYAt(x / w, used, st.t, fy)]);
+    bankPts.push([x, bankYAt(x / w, fill, st.t, fy)]);
   }
   if (bankPts[bankPts.length - 1][0] < w + 10) {
-    bankPts.push([w + 10, bankYAt(1, used, st.t, fy)]);
+    bankPts.push([w + 10, bankYAt(1, fill, st.t, fy)]);
   }
   const traceBankTop = (dy) => {
     ctx.moveTo(bankPts[0][0], bankPts[0][1] + dy);
@@ -596,7 +623,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     const tx = tr.x * w;
     if (tx < -80 || tx > w + 80) continue;
     const scale = 1.5 - tr.depth * 0.24;
-    const baseY = bankYAt(tr.x, used, st.t, fy) + 22;
+    const baseY = bankYAt(tr.x, fill, st.t, fy) + 22;
     const shade = Math.max(0, 1 - Math.abs(tx - fx) / (w * 0.9));
     const bodyColor = `rgba(${10 + shade * 26},${8 + shade * 16},${7 + shade * 9},${Math.max(0.4, 0.95 - tr.depth * 0.13)})`;
 
@@ -648,7 +675,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // grass — a warm/cool color mix and a gentle per-blade sway so the
   // ground reads as alive, not a static texture
   for (const tuft of st.tufts) {
-    const tuftBank = bankYAt(tuft.x, used, st.t, fy);
+    const tuftBank = bankYAt(tuft.x, fill, st.t, fy);
     const gy = tuftBank + 4 + tuft.y * (h - tuftBank) * 0.98;
     const d = 1 - Math.min(1, Math.abs(tuft.x * w - fx) / (w * 0.7));
     const sway = Math.sin(st.t * tuft.sp + tuft.ph) * 1.4;
@@ -661,7 +688,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // highlight (same trick as the fire-pit rocks) so they read as rounded
   // pebbles rather than flat dark stones
   for (const pb of st.pebbles) {
-    const pbBank = bankYAt(pb.x, used, st.t, fy);
+    const pbBank = bankYAt(pb.x, fill, st.t, fy);
     const px = pb.x * w, py = pbBank + 6 + pb.y * (h - pbBank) * 0.9;
     const d = 1 - Math.min(1, Math.abs(px - fx) / (w * 0.6));
     const warm = pb.hue > 0.5;
