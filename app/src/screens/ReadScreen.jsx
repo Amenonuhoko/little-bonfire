@@ -3,9 +3,15 @@ import { useRef } from 'react';
 // Distance a horizontal drag needs to cover before it counts as a swipe
 // rather than a tap on one of the buttons underneath.
 const SWIPE_THRESHOLD = 46;
+// Minimum wheel delta before a scroll tick counts as "next" — small trackpad
+// noise stays inert. Locked out briefly after firing so one scroll gesture
+// (which sends many tiny wheel events) doesn't skip through several embers.
+const WHEEL_THRESHOLD = 12;
+const WHEEL_LOCK_MS = 450;
 
 export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHelped, onNotThis, onSwipeNext }) {
   const dragRef = useRef(null);
+  const wheelLockRef = useRef(false);
 
   const onPointerDown = (e) => { dragRef.current = { x: e.clientX, moved: 0 }; };
   const onPointerMove = (e) => {
@@ -17,6 +23,13 @@ export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHe
     const d = dragRef.current;
     dragRef.current = null;
     if (d && Math.abs(e.clientX - d.x) > SWIPE_THRESHOLD) onSwipeNext();
+  };
+  const onWheel = (e) => {
+    if (wheelLockRef.current) return;
+    if (Math.max(Math.abs(e.deltaY), Math.abs(e.deltaX)) < WHEEL_THRESHOLD) return;
+    wheelLockRef.current = true;
+    onSwipeNext();
+    setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
   };
 
   // buttons get their own pointer handlers (with stopPropagation) instead
@@ -30,6 +43,7 @@ export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHe
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onWheel={onWheel}
       style={{
         position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,10,12,.5),rgba(9,10,12,.9) 55%)',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '64px 26px 40px',
@@ -45,7 +59,7 @@ export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHe
           ← back to the fire
         </div>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.1em', color: 'rgba(230,221,203,.4)' }}>
-          drawn at random · swipe for another
+          drawn at random · swipe or scroll for another
         </div>
       </div>
 
