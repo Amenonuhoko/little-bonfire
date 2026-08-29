@@ -3,12 +3,54 @@ import { BONE } from '../data';
 export default function HomeScreen({
   quiet, revealed, skyMode, liveCountLabel, starCountLabel,
   readingEmber, onDismissEmber, onHelpedEmber,
+  moonSeat, onDismissMoon,
   onWheel, onDown, onMove, onUp, onDrop, onRead,
 }) {
   // buttons get their own pointer handlers (with stopPropagation) instead
   // of onClick — the trailing click event otherwise loses a race against
   // the outer onPointerUp (dismiss) below and silently never fires
   const stop = (e) => e.stopPropagation();
+
+  // a little Easter egg: tapping the moon (see BonfireCanvas's hitTestMoon)
+  // surfaces this instead of the usual reveal/dismiss toggle
+  if (moonSeat) {
+    return (
+      <div
+        onPointerUp={onDismissMoon}
+        style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          justifyContent: 'flex-end', padding: '64px 26px 52px', cursor: 'pointer', animation: 'ddIn .4s ease',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontFamily: "'Young Serif',serif", fontSize: 17, color: BONE }}>
+            There's a seat up there.
+          </div>
+          <div style={{ fontFamily: 'Newsreader,serif', fontSize: 16.5, lineHeight: 1.65, color: '#f0e2c8', textShadow: '0 0 34px rgba(194,161,115,.3)' }}>
+            Someone's keeping it warm for whoever's ready to take it. If you'd like to help them get there —
+          </div>
+          <a
+            href="https://paypal.me/skytale"
+            target="_blank"
+            rel="noopener noreferrer"
+            onPointerDown={stop}
+            onPointerUp={stop}
+            style={{
+              display: 'block', padding: 15, textAlign: 'center', textDecoration: 'none', borderRadius: 2,
+              border: '1px solid rgba(194,161,115,.45)',
+              background: 'linear-gradient(180deg,rgba(194,161,115,.18),rgba(194,161,115,.05))',
+              color: '#e8dcc4', fontSize: 13.5, fontWeight: 500, letterSpacing: '.03em',
+            }}
+          >
+            paypal.me/skytale
+          </a>
+          <div style={{ textAlign: 'center', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.3)' }}>
+            touch anywhere to return
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (readingEmber) {
     return (

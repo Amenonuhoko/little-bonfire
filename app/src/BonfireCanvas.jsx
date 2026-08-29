@@ -5,6 +5,19 @@ import { KINDLING_IDS, KINDLING, totalFor } from './data';
 // hit test and the visible tap-area guide so they never disagree.
 const EMBER_TAP_RADIUS = 26;
 
+// How close a tap needs to land to the moon for the Easter egg.
+const MOON_TAP_RADIUS = 30;
+
+// Muted autumn tones for the fallen-leaf ground texture — kept close in
+// value to the ground's own dark browns rather than the pale gray/tan the
+// old pebbles used, so they blend in instead of popping out.
+const LEAF_HUES = [
+  [150, 88, 46], // rust
+  [168, 128, 54], // ochre
+  [104, 108, 52], // olive
+  [126, 70, 48], // dark brown-red
+];
+
 // Ported from the Claude Design prototype's canvas draw loop — the bonfire,
 // its embers (live messages) and stars (spent/"this helped" messages).
 // `messages` is the source of truth for which embers exist ([{id,
@@ -46,6 +59,17 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
       }
       return best ? { id: best.id, name: best.name, color: best.c, text: best.text, kindlingId: best.kindlingId } : null;
     },
+    // true if (px, py) lands on the moon — same fixed position and fade
+    // curve the draw loop itself uses (see the moon's own comment below),
+    // so this only succeeds while the moon is actually visible on screen.
+    hitTestMoon(px, py) {
+      const st = s.current;
+      if (!st || !st.w) return false;
+      const moonA = Math.max(0, 1 - skyRef.current * 2.2);
+      if (moonA <= 0.05) return false;
+      const mx = st.w * 0.76, my = st.h * 0.1;
+      return Math.hypot(px - mx, py - my) < MOON_TAP_RADIUS;
+    },
   }));
 
   useEffect(() => {
@@ -54,7 +78,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     const st = {
       ctx, w: 0, h: 0, cam: 0, flare: 0, t: 0,
       embers: [], stars: [], tufts: [], sparks: [], smoke: [], noisePattern: null, raf: 0,
-      milkyway: [], pebbles: [], nearTrees: [],
+      milkyway: [], leaves: [], nearTrees: [],
     };
     s.current = st;
 
@@ -101,13 +125,15 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
         a: 0.02 + Math.random() * 0.05,
       });
     }
-    // ground pebbles — small rounded stones in a randomized warm-gray/tan
-    // palette, each with its own lit-side gradient so they read as rounded
-    // pebbles rather than flat dark stones
-    for (let i = 0; i < 58; i++) {
-      st.pebbles.push({
-        x: Math.random(), y: Math.random(), r: 1.1 + Math.random() * 2.6,
-        hue: Math.random(), rot: Math.random() * 6.28,
+    // fallen leaves scattered near the ground — muted autumn tones kept
+    // close to the ground's own dark-brown palette (unlike pale pebbles,
+    // which read as high-contrast pale dots against it), so they add
+    // texture without popping out
+    for (let i = 0; i < 50; i++) {
+      st.leaves.push({
+        x: Math.random(), y: Math.random(), len: 3 + Math.random() * 3.6,
+        hue: LEAF_HUES[Math.floor(Math.random() * LEAF_HUES.length)],
+        rot: Math.random() * 6.28,
       });
     }
     // pines and low bushes framing the campsite at each screen edge — an
@@ -764,35 +790,29 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     ctx.lineWidth = 0.8 + tuft.hue * 0.6;
     ctx.beginPath(); ctx.moveTo(tuft.x * w, gy); ctx.lineTo(tuft.x * w + tuft.l + sway, gy - tuft.h); ctx.stroke();
   }
-  // pebbles — each shaded with its own light-to-dark diagonal gradient (the
-  // same idea as the fire-pit rocks below) plus a soft contact shadow, so
-  // even at a couple pixels across they read as rounded volumes resting on
-  // the ground rather than flat pale dots
-  for (const pb of st.pebbles) {
-    const pbBank = bankYAt(pb.x, fill, st.t, fy);
-    const px = pb.x * w, py = pbBank + 6 + pb.y * (h - pbBank) * 0.9;
+  // fallen leaves — a tapered almond silhouette with a center vein, in
+  // muted tones blended close to the ground's own palette, so the ground
+  // gets texture without the high-contrast pop the old pale pebbles had
+  for (const lf of st.leaves) {
+    const lfBank = bankYAt(lf.x, fill, st.t, fy);
+    const px = lf.x * w, py = lfBank + 6 + lf.y * (h - lfBank) * 0.9;
     const d = 1 - Math.min(1, Math.abs(px - fx) / (w * 0.6));
-    const warm = pb.hue > 0.5;
-    const rx = pb.r * 1.5, ry = pb.r;
-    const base = warm
-      ? [120 + pb.hue * 40, 96 + pb.hue * 30, 70 + pb.hue * 20]
-      : [80 + pb.hue * 30, 76 + pb.hue * 28, 72 + pb.hue * 26];
-    const a = (0.4 + 0.45 * d).toFixed(3);
-
-    ctx.globalAlpha = 0.2 + 0.3 * d;
-    ctx.fillStyle = 'rgba(4,3,3,0.9)';
-    ctx.beginPath(); ctx.ellipse(px, py + ry * 0.55, rx * 0.9, ry * 0.42, 0, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = 1;
+    const [r, g, b] = lf.hue;
+    const a = (0.16 + 0.26 * d).toFixed(3);
 
     ctx.save();
     ctx.translate(px, py);
-    ctx.rotate(pb.rot);
-    const lit = ctx.createLinearGradient(-rx * 0.6, -ry * 0.7, rx * 0.6, ry * 0.7);
-    lit.addColorStop(0, `rgba(${Math.min(255, base[0] + 90)},${Math.min(255, base[1] + 78)},${Math.min(255, base[2] + 60)},${a})`);
-    lit.addColorStop(0.5, `rgba(${base[0].toFixed(0)},${base[1].toFixed(0)},${base[2].toFixed(0)},${a})`);
-    lit.addColorStop(1, `rgba(${(base[0] * 0.42).toFixed(0)},${(base[1] * 0.42).toFixed(0)},${(base[2] * 0.42).toFixed(0)},${a})`);
-    ctx.fillStyle = lit;
-    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, 6.2832); ctx.fill();
+    ctx.rotate(lf.rot);
+    ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+    ctx.beginPath();
+    ctx.moveTo(0, -lf.len);
+    ctx.quadraticCurveTo(lf.len * 0.62, 0, 0, lf.len);
+    ctx.quadraticCurveTo(-lf.len * 0.62, 0, 0, -lf.len);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${Math.max(0, r - 45)},${Math.max(0, g - 45)},${Math.max(0, b - 35)},${(a * 0.7).toFixed(3)})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(0, -lf.len * 0.75); ctx.lineTo(0, lf.len * 0.75); ctx.stroke();
     ctx.restore();
   }
   ctx.globalAlpha = 1;
