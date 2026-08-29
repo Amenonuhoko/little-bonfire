@@ -18,6 +18,18 @@ const LEAF_HUES = [
   [126, 70, 48], // dark brown-red
 ];
 
+// Blends a #rrggbb hex color toward another by t (0 = pure c1, 1 = pure
+// c2) — used to keep an ember's glow reading warm and fire-lit even when
+// its kindling's own accent hue is cool (like vigil's blue-gray), rather
+// than looking like a flat, differently-colored gem.
+function mixHex(c1, c2, t) {
+  const a = parseInt(c1.slice(1), 16), b = parseInt(c2.slice(1), 16);
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
 // Ported from the Claude Design prototype's canvas draw loop — the bonfire,
 // its embers (live messages) and stars (spent/"this helped" messages).
 // `messages` is the source of truth for which embers exist ([{id,
@@ -237,6 +249,20 @@ function mkEmber(st, message) {
     // every ember has its own irregular, coal-like shape instead of a
     // perfect circle — drawn in the embers loop below, in draw()
     shape: Array.from({ length: 7 + Math.floor(Math.random() * 2) }, () => 0.7 + Math.random() * 0.6),
+    // a slow, independent turn (some clockwise, some not) so the coal
+    // visibly rotates in place instead of just sitting there wobbling
+    rot0: Math.random() * 6.2832, rotSp: (Math.random() - 0.5) * 0.12,
+    // the glow and body lean warm/fire-colored regardless of the kindling's
+    // own accent hue (even a cool blue-gray kindling should still read as
+    // a live coal, not a colored gem) — only the small core stays neutral
+    glowColor: mixHex(KINDLING[kindlingId].color, '#ff8a3d', 0.62),
+    bodyColor: mixHex(KINDLING[kindlingId].color, '#ff9d4d', 0.34),
+    // a couple of tiny sparks drifting in slow orbits around the coal,
+    // like fireflies — the detail meant to make it look worth reaching for
+    motes: [0, 1].map(() => ({
+      r: 7 + Math.random() * 6, sp: 0.5 + Math.random() * 0.7,
+      ph: Math.random() * 6.2832, size: 0.5 + Math.random() * 0.7,
+    })),
   };
 }
 
@@ -857,16 +883,21 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // embers: live messages, drifting gently in place within a fixed tap
   // zone — a touch bolder once the fire has been touched once, rewarding
   // the tap with a clearer ember field. Each is an irregular, ember-shaped
-  // blob (its own randomized silhouette from mkEmber, gently alive via a
-  // per-vertex wobble) rather than a plain circle, with a bright hot core
-  // inside the kindling-colored body so it reads as glowing, not flat.
+  // blob (its own randomized silhouette from mkEmber) that breathes with a
+  // layered, candle-like flicker and a slow independent rotation rather
+  // than a steady pulse, with a couple of firefly-like sparks orbiting it —
+  // meant to look like a live coal worth reaching out and catching.
   const emberBoost = revealed ? 1.55 : 1;
   for (const e of st.embers) {
     const bx = e.x * w, by = e.y;
     const x = bx + Math.sin(st.t * e.sp + e.ph) * e.ax;
     const y = by + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
-    const a = Math.min(1, (e.a * 0.6 + 0.4) * (0.7 + 0.3 * Math.sin(st.t * 0.42 + e.ph)) * emberBoost);
-    const r = e.r * emberBoost;
+    // three out-of-phase frequencies (slow breath + two quicker wobbles)
+    // instead of one clean sine — reads as organic flicker, not a metronome
+    const flicker = 0.72 + 0.18 * Math.sin(st.t * 0.42 + e.ph) + 0.07 * Math.sin(st.t * 1.7 + e.ph * 2.3) + 0.05 * Math.sin(st.t * 4.1 + e.ph * 0.6);
+    const a = Math.min(1, (e.a * 0.6 + 0.4) * flicker * emberBoost);
+    const r = e.r * emberBoost * (0.94 + 0.08 * Math.sin(st.t * 0.9 + e.ph * 1.3));
+    const rot = e.rot0 + st.t * e.rotSp;
 
     const traceEmberBody = (scale) => {
       const n = e.shape.length;
@@ -874,19 +905,29 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
       for (let i = 0; i <= n; i++) {
         const wobble = 1 + Math.sin(st.t * 1.6 + e.ph + i * 1.7) * 0.06;
         const rad = r * scale * e.shape[i % n] * wobble;
-        const ang = (i / n) * 6.2832;
+        const ang = rot + (i / n) * 6.2832;
         const px = x + Math.cos(ang) * rad, py = y + Math.sin(ang) * rad * 0.92;
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath();
     };
 
-    ctx.globalAlpha = Math.max(0, a * (revealed ? 0.3 : 0.2));
-    traceEmberBody(4.2); ctx.fillStyle = e.c; ctx.fill();
+    ctx.globalAlpha = Math.max(0, a * (revealed ? 0.32 : 0.22));
+    traceEmberBody(4.6); ctx.fillStyle = e.glowColor; ctx.fill();
     ctx.globalAlpha = Math.max(0, a);
-    traceEmberBody(1); ctx.fillStyle = e.c; ctx.fill();
-    ctx.globalAlpha = Math.max(0, a * 0.9);
-    traceEmberBody(0.48); ctx.fillStyle = '#ffe9c2'; ctx.fill();
+    traceEmberBody(1); ctx.fillStyle = e.bodyColor; ctx.fill();
+    ctx.globalAlpha = Math.max(0, a * 0.92);
+    traceEmberBody(0.46); ctx.fillStyle = '#fff2d6'; ctx.fill();
+
+    // firefly-like sparks drifting in slow orbits — small enough to stay
+    // inside the tap zone, but they're the detail that invites a reach
+    for (const m of e.motes) {
+      const mang = st.t * m.sp + m.ph;
+      const mx = x + Math.cos(mang) * m.r, my = y + Math.sin(mang) * m.r * 0.7;
+      ctx.globalAlpha = Math.max(0, a * (0.35 + 0.5 * Math.sin(st.t * 2.3 + m.ph * 3)));
+      ctx.fillStyle = '#fff2d6';
+      ctx.beginPath(); ctx.arc(mx, my, m.size, 0, 6.2832); ctx.fill();
+    }
 
     // a faint dashed guide around the ember's fixed rest point — exactly
     // where a tap lands and still counts, regardless of the drift above
