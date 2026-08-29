@@ -2,9 +2,14 @@ import { BONE } from '../data';
 
 export default function HomeScreen({
   quiet, revealed, skyMode, liveCountLabel, starCountLabel,
-  readingEmber, onDismissEmber,
+  readingEmber, onDismissEmber, onHelpedEmber,
   onWheel, onDown, onMove, onUp, onDrop, onRead,
 }) {
+  // buttons get their own pointer handlers (with stopPropagation) instead
+  // of onClick — the trailing click event otherwise loses a race against
+  // the outer onPointerUp (dismiss) below and silently never fires
+  const stop = (e) => e.stopPropagation();
+
   if (readingEmber) {
     return (
       <div
@@ -23,7 +28,23 @@ export default function HomeScreen({
             {readingEmber.text}
           </div>
           <div style={{ height: 1, background: 'linear-gradient(90deg,rgba(194,161,115,.5),transparent)' }} />
-          <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.3)' }}>
+          <div style={{ display: 'flex', gap: 9 }}>
+            <div
+              onPointerDown={stop}
+              onPointerUp={(e) => { stop(e); onHelpedEmber(); }}
+              style={{ flex: 1, padding: 15, textAlign: 'center', border: '1px solid rgba(194,161,115,.45)', background: 'linear-gradient(180deg,rgba(194,161,115,.14),transparent)', color: '#e8dcc4', fontSize: 12.5, letterSpacing: '.05em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              This helped
+            </div>
+            <div
+              onPointerDown={stop}
+              onPointerUp={(e) => { stop(e); onDismissEmber(); }}
+              style={{ flex: 1, padding: 15, textAlign: 'center', border: '1px solid rgba(230,221,203,.14)', color: 'rgba(230,221,203,.55)', fontSize: 12.5, letterSpacing: '.05em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              Not this
+            </div>
+          </div>
+          <div style={{ textAlign: 'center', fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(230,221,203,.3)' }}>
             touch anywhere to return
           </div>
         </div>

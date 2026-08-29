@@ -37,8 +37,6 @@ export default function App() {
   const [sky, setSky] = useState(0); // 0 = at the fire, 1 = up in the sky
   const [picks, setPicks] = useState({});
   const [slot, setSlot] = useState(0);
-  const [feedback, setFeedback] = useState('');
-  const [feedbackTone, setFeedbackTone] = useState('n');
   const [dropped, setDropped] = useState('');
   const [starCount, setStarCount] = useState(150);
 
@@ -75,7 +73,7 @@ export default function App() {
 
   const liveCountLabel = `${messages.length} embers live`;
 
-  const goHome = () => { setScreen('home'); setFeedback(''); setRevealed(false); };
+  const goHome = () => { setScreen('home'); setRevealed(false); };
   const tapFire = () => setRevealed((r) => !r);
   const goPickDrop = () => setScreen('pick');
   const dismissEmber = () => setReadingEmber(null);
@@ -97,13 +95,12 @@ export default function App() {
     const m = pickRandomMessage(messages);
     if (!m) return;
     setViewEmber(toViewEmber(m));
-    setFeedback('');
     setScreen('read');
   };
 
   const swipeNextEmber = () => {
     const m = pickRandomMessage(messages);
-    if (m) { setViewEmber(toViewEmber(m)); setFeedback(''); } else goHome();
+    if (m) setViewEmber(toViewEmber(m)); else goHome();
   };
 
   const onWheel = (e) => {
@@ -132,7 +129,7 @@ export default function App() {
   const pickKindling = (id) => {
     const total = totalFor(id);
     const full = total > 0 && used[id] >= total;
-    if (full) { setKindling(id); setFeedback(''); return; }
+    if (full) { setKindling(id); return; }
     const idxs = slotIdxsFor(id, 0);
     setKindling(id);
     setTemplate(0);
@@ -169,24 +166,15 @@ export default function App() {
       .catch((err) => console.error('Failed to save drop:', err));
   };
 
-  const helpedEmber = () => {
-    if (!viewEmber) return;
-    const updated = messages.filter((m) => m.id !== viewEmber.id);
-    setMessages(updated);
+  // voting lives on the ember you deliberately tapped on the fire, not on
+  // the random browse from "Read one" — that's pure discovery, no action
+  const helpedReadingEmber = () => {
+    if (!readingEmber) return;
+    setMessages((ms) => ms.filter((m) => m.id !== readingEmber.id));
     fireRef.current?.addStar();
     setStarCount((n) => n + 1);
-    setFeedback('Risen. It joined the sky — a slot opened because it worked.');
-    setFeedbackTone('g');
-    const next = pickRandomMessage(updated);
-    if (next) setViewEmber(toViewEmber(next)); else goHome();
-    store.markHelped(viewEmber.id).catch((err) => console.error('Failed to save "this helped":', err));
-  };
-
-  const notThisEmber = () => {
-    setFeedback('Logged. A few more of those and it retires quietly.');
-    setFeedbackTone('n');
-    const next = pickRandomMessage(messages);
-    if (next) setViewEmber(toViewEmber(next)); else goHome();
+    setReadingEmber(null);
+    store.markHelped(readingEmber.id).catch((err) => console.error('Failed to save "this helped":', err));
   };
 
   return (
@@ -227,6 +215,7 @@ export default function App() {
             starCountLabel={`${starCount} stars risen`}
             readingEmber={readingEmber}
             onDismissEmber={dismissEmber}
+            onHelpedEmber={helpedReadingEmber}
             onWheel={onWheel}
             onDown={onDown}
             onMove={onMove}
@@ -261,11 +250,7 @@ export default function App() {
         {screen === 'read' && viewEmber && (
           <ReadScreen
             ember={viewEmber}
-            feedback={feedback}
-            feedbackTone={feedbackTone}
             onBack={goHome}
-            onHelped={helpedEmber}
-            onNotThis={notThisEmber}
             onSwipeNext={swipeNextEmber}
           />
         )}

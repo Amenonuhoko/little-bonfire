@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 
 // Distance a horizontal drag needs to cover before it counts as a swipe
-// rather than a tap on one of the buttons underneath.
+// rather than a tap.
 const SWIPE_THRESHOLD = 46;
 // Minimum wheel delta before a scroll tick counts as "next" — small trackpad
 // noise stays inert. Locked out briefly after firing so one scroll gesture
@@ -9,7 +9,11 @@ const SWIPE_THRESHOLD = 46;
 const WHEEL_THRESHOLD = 12;
 const WHEEL_LOCK_MS = 450;
 
-export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHelped, onNotThis, onSwipeNext }) {
+// Pure browsing — swipe or scroll to the next random ember, tap back to
+// return. Voting ("this helped" / "not this") lives on the ember you
+// deliberately tap on the fire instead (see HomeScreen's readingEmber
+// card), not here — this screen is discovery only.
+export default function ReadScreen({ ember, onBack, onSwipeNext }) {
   const dragRef = useRef(null);
   const wheelLockRef = useRef(false);
 
@@ -32,9 +36,9 @@ export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHe
     setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
   };
 
-  // buttons get their own pointer handlers (with stopPropagation) instead
-  // of onClick — the trailing click event otherwise loses a race against
-  // the pointerup above and silently never fires
+  // the back label gets its own pointer handlers (with stopPropagation)
+  // instead of onClick — the trailing click event otherwise loses a race
+  // against the pointerup above and silently never fires
   const stop = (e) => e.stopPropagation();
 
   return (
@@ -46,7 +50,7 @@ export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHe
       onWheel={onWheel}
       style={{
         position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,10,12,.5),rgba(9,10,12,.9) 55%)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '64px 26px 40px',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '64px 26px 52px',
         animation: 'ddIn .4s ease', touchAction: 'pan-y',
       }}
     >
@@ -63,35 +67,13 @@ export default function ReadScreen({ ember, feedback, feedbackTone, onBack, onHe
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: ember.color, boxShadow: `0 0 12px ${ember.color}` }} />
           <div style={{ fontFamily: "'Young Serif',serif", fontSize: 16, color: '#e6ddcb' }}>{ember.name}</div>
         </div>
-        <div style={{ fontFamily: 'Newsreader,serif', fontSize: 21, lineHeight: 1.7, color: '#f0e2c8', textShadow: '0 0 34px rgba(194,161,115,.3)' }}>
+        <div style={{ fontFamily: 'Newsreader,serif', fontSize: 19, lineHeight: 1.65, color: '#f0e2c8', textShadow: '0 0 34px rgba(194,161,115,.3)' }}>
           {ember.text}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-        <div style={{ display: 'flex', gap: 9 }}>
-          <div
-            onPointerDown={stop}
-            onPointerUp={(e) => { stop(e); onHelped(); }}
-            style={{ flex: 1, padding: 15, textAlign: 'center', border: '1px solid rgba(194,161,115,.45)', background: 'linear-gradient(180deg,rgba(194,161,115,.14),transparent)', color: '#e8dcc4', fontSize: 12.5, letterSpacing: '.05em', textTransform: 'uppercase', cursor: 'pointer' }}
-          >
-            This helped
-          </div>
-          <div
-            onPointerDown={stop}
-            onPointerUp={(e) => { stop(e); onNotThis(); }}
-            style={{ flex: 1, padding: 15, textAlign: 'center', border: '1px solid rgba(230,221,203,.14)', color: 'rgba(230,221,203,.55)', fontSize: 12.5, letterSpacing: '.05em', textTransform: 'uppercase', cursor: 'pointer' }}
-          >
-            Not this
-          </div>
-        </div>
-        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, lineHeight: 1.6, letterSpacing: '.08em', color: feedbackTone === 'g' ? 'rgba(203,176,131,.9)' : 'rgba(230,221,203,.4)', minHeight: 26 }}>
-          {feedback}
         </div>
       </div>
     </div>
