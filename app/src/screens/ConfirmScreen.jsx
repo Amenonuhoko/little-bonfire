@@ -4,7 +4,7 @@ export default function ConfirmScreen({ kindlingId, droppedText, onDismiss }) {
   const b = KINDLING[kindlingId];
   return (
     <div
-      onClick={onDismiss}
+      onPointerUp={onDismiss}
       style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '64px 26px 52px', cursor: 'pointer', animation: 'ddIn .5s ease' }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
