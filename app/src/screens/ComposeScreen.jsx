@@ -8,7 +8,7 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
   const slotOpts = (tmpl.parts[slot] && tmpl.parts[slot].opts) || [];
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,10,12,.9),rgba(9,10,12,.98))', display: 'flex', flexDirection: 'column', padding: '64px 0 34px', animation: 'ddIn .35s ease' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,10,12,.9),rgba(9,10,12,.98))', display: 'flex', flexDirection: 'column', padding: '64px 0 34px', animation: 'ddIn .6s cubic-bezier(.16,1,.3,1)' }}>
       <div style={{ padding: '0 24px 14px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div onClick={onBack} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer' }}>
@@ -33,7 +33,7 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
                   border: `1px solid ${active ? b.color : 'rgba(230,221,203,.16)'}`,
                   background: active ? `${b.color}26` : 'rgba(230,221,203,.03)',
                   color: active ? '#f4e6c9' : 'rgba(230,221,203,.55)',
-                  cursor: 'pointer',
+                  cursor: 'pointer', transition: 'border-color .35s ease, background .35s ease, color .35s ease',
                 }}
               >
                 {t.label}
@@ -58,6 +58,7 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
                   color: val ? '#f4e6c9' : 'rgba(230,221,203,.35)',
                   borderBottom: `1px solid ${active ? '#c2a173' : val ? 'rgba(194,161,115,.35)' : 'rgba(230,221,203,.2)'}`,
                   background: active ? 'rgba(194,161,115,.12)' : 'transparent',
+                  transition: 'color .35s ease, border-color .35s ease, background .35s ease',
                 }}
               >
                 {val || '——————'}
@@ -68,27 +69,37 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.35)' }}>
-          choose · slot {Math.max(0, slotIdxs.indexOf(slot)) + 1} of {slotIdxs.length}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.35)' }}>
+          {/* the same slow ember as the kindling-picker screen — no reason
+              this part should feel any more hurried than that one */}
+          <div aria-hidden style={{ width: 5, height: 5, borderRadius: '50%', background: '#e8a165', boxShadow: '0 0 8px 2px rgba(232,161,101,.55)', animation: 'ddGlow 4.5s ease-in-out infinite', flexShrink: 0 }} />
+          take your time · slot {Math.max(0, slotIdxs.indexOf(slot)) + 1} of {slotIdxs.length}
         </div>
-        {slotOpts.map((o) => {
-          const chosen = picks[slot] === o;
-          return (
-            <div
-              key={o}
-              onClick={() => onChoose(slot, o)}
-              style={{
-                padding: '13px 15px',
-                border: `1px solid ${chosen ? 'rgba(194,161,115,.7)' : 'rgba(230,221,203,.12)'}`,
-                background: chosen ? 'rgba(194,161,115,.1)' : 'rgba(230,221,203,.02)',
-                fontFamily: 'Newsreader,serif', fontSize: 15, lineHeight: 1.4,
-                color: chosen ? '#f4e6c9' : 'rgba(230,221,203,.75)', cursor: 'pointer',
-              }}
-            >
-              {o}
-            </div>
-          );
-        })}
+        {/* keyed by slot so switching blanks re-triggers the cascade below,
+            instead of the option list just snapping to new text in place */}
+        <div key={slot} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {slotOpts.map((o, i) => {
+            const chosen = picks[slot] === o;
+            return (
+              <div
+                key={o}
+                onClick={() => onChoose(slot, o)}
+                style={{
+                  padding: '14px 15px',
+                  border: `1px solid ${chosen ? 'rgba(194,161,115,.7)' : 'rgba(230,221,203,.12)'}`,
+                  background: chosen ? 'rgba(194,161,115,.1)' : 'rgba(230,221,203,.02)',
+                  fontFamily: 'Newsreader,serif', fontSize: 15, lineHeight: 1.45,
+                  color: chosen ? '#f4e6c9' : 'rgba(230,221,203,.75)', cursor: 'pointer',
+                  transition: 'border-color .35s ease, background .35s ease, color .35s ease',
+                  animation: 'ddIn .5s cubic-bezier(.16,1,.3,1) both',
+                  animationDelay: `${i * 60}ms`,
+                }}
+              >
+                {o}
+              </div>
+            );
+          })}
+        </div>
         <div style={{ height: 8 }} />
       </div>
 
@@ -102,9 +113,10 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
             color: allPicked ? '#f4e6c9' : 'rgba(230,221,203,.3)',
             fontSize: 13.5, fontWeight: 500, letterSpacing: '.06em', textTransform: 'uppercase',
             fontFamily: 'Archivo,sans-serif', cursor: allPicked ? 'pointer' : 'default',
+            transition: 'border-color .4s ease, background .4s ease, color .4s ease',
           }}
         >
-          {allPicked ? `Drop into ${b.name}` : 'Fill every slot'}
+          {allPicked ? `Drop into ${b.name}` : 'Still deciding'}
         </div>
       </div>
     </div>
