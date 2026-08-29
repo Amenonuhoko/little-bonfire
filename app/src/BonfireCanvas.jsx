@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { KINDLING_IDS, KINDLING, INITIAL_USED, totalFor } from './data';
+import { KINDLING_IDS, KINDLING, totalFor } from './data';
 
 // How close a tap needs to land to an ember to read it — shared by the
 // hit test and the visible tap-area guide so they never disagree.
@@ -7,7 +7,11 @@ const EMBER_TAP_RADIUS = 26;
 
 // Ported from the Claude Design prototype's canvas draw loop — the bonfire,
 // its embers (live messages) and stars (spent/"this helped" messages).
-const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed, used, activeEmberId }, ref) {
+// `messages` is the source of truth for which embers exist ([{id,
+// kindlingId, text}], owned by App.jsx / the data store) — this component
+// only owns how they're placed and animated, syncing to that list below
+// rather than generating or removing embers on its own.
+const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed, used, activeEmberId, messages }, ref) {
   const canvasElRef = useRef(null);
   const s = useRef(null); // mutable animation state, lives outside React render cycle
   const screenRef = useRef(screen);
@@ -24,19 +28,6 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
 
   useImperativeHandle(ref, () => ({
     flare() { if (s.current) s.current.flare = 1; },
-    // text is the message that was actually just dropped, so the new ember
-    // is readable with its own real content, not a generic placeholder
-    addEmber(kindlingId, text) {
-      if (!s.current) return;
-      s.current.embers.push(mkEmber(s.current, kindlingId, text));
-    },
-    removeOldestEmber() {
-      if (s.current && s.current.embers.length) s.current.embers.shift();
-    },
-    removeEmberById(id) {
-      if (!s.current) return;
-      s.current.embers = s.current.embers.filter((e) => e.id !== id);
-    },
     addStar() {
       if (!s.current) return;
       s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0 });
@@ -54,19 +45,6 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
         if (d < bestD) { bestD = d; best = e; }
       }
       return best ? { id: best.id, name: best.name, color: best.c, text: best.text, kindlingId: best.kindlingId } : null;
-    },
-    // picks a random real ember, preferring one whose id isn't in
-    // excludeIds — the caller's "already seen this browse" list — but
-    // falls back to the full pool once every ember has been excluded,
-    // so browsing cycles instead of dead-ending.
-    randomEmber(excludeIds) {
-      const st = s.current;
-      if (!st || !st.embers.length) return null;
-      const excl = excludeIds || [];
-      const pool = st.embers.filter((e) => !excl.includes(e.id));
-      const list = pool.length ? pool : st.embers;
-      const pick = list[Math.floor(Math.random() * list.length)];
-      return { id: pick.id, name: pick.name, color: pick.c, text: pick.text, kindlingId: pick.kindlingId };
     },
   }));
 
@@ -101,11 +79,6 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     for (let i = 0; i < 150; i++) {
       const likes = Math.round(6 + Math.pow(Math.random(), 2.6) * 240);
       st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28 });
-    }
-    // one ember per actually-occupied slot — every ember is readable,
-    // there's nothing decorative floating out there without a real message
-    for (const id of KINDLING_IDS) {
-      for (let i = 0; i < INITIAL_USED[id]; i++) st.embers.push(mkEmber(st, id));
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
@@ -167,6 +140,23 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     };
   }, []);
 
+  // keeps the rendered embers in sync with the `messages` prop: new
+  // messages get placed (via mkEmber, which avoids the flame), messages
+  // that are gone get dropped, and everything else keeps its existing
+  // position/sway untouched so a refetch doesn't reshuffle the fire.
+  // Runs after the effect above, so s.current already exists by the
+  // time this first fires on mount.
+  useEffect(() => {
+    const st = s.current;
+    if (!st) return;
+    const incomingIds = new Set(messages.map((m) => m.id));
+    st.embers = st.embers.filter((e) => incomingIds.has(e.id));
+    const existingIds = new Set(st.embers.map((e) => e.id));
+    for (const m of messages) {
+      if (!existingIds.has(m.id)) st.embers.push(mkEmber(st, m));
+    }
+  }, [messages]);
+
   return (
     <canvas
       ref={canvasElRef}
@@ -186,12 +176,11 @@ function flameHalfWidthAt(y, fy) {
   return 46 * (1 - heightFrac) + 26;
 }
 
-// Every ember is a real simulated message — none are decorative. `text`
-// lets a just-dropped ember show its own actual content; otherwise one of
-// the kindling's sample messages is cycled in. Each gets a stable id so the
-// canvas can highlight the specific one currently being read.
-let emberSeq = 0;
-function mkEmber(st, kindlingId, text) {
+// Every ember is a real message — none are decorative. Placement (this
+// function) is the only thing owned here; identity and text always come
+// from the `message` object the caller already has.
+function mkEmber(st, message) {
+  const { id, kindlingId, text } = message;
   const h = st.h || 860, w = st.w || 402;
   const fy = h * 0.68;
   let ex, ey, tries = 0;
@@ -209,14 +198,12 @@ function mkEmber(st, kindlingId, text) {
     // ran out of tries right in the flame's shadow — push it clear outright
     ex = (ex < 0.5 ? w / 2 - clearHalf : w / 2 + clearHalf) / w;
   }
-  const live = KINDLING[kindlingId].live;
-  const emberId = emberSeq++;
   return {
-    id: emberId,
+    id,
     kindlingId,
     c: KINDLING[kindlingId].color,
     name: KINDLING[kindlingId].name,
-    text: text || live[emberId % live.length].t,
+    text,
     x: Math.max(0.04, Math.min(0.96, ex)),
     y: ey,
     // sway amplitude is kept well under EMBER_TAP_RADIUS so the ember's

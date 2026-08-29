@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react';
-import { KINDLING, INITIAL_USED, totalFor } from './data';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { KINDLING, KINDLING_IDS, totalFor } from './data';
+import { store } from './lib/store';
+import { hasBackend } from './lib/supabase';
 import BonfireCanvas from './BonfireCanvas';
 import HomeScreen from './screens/HomeScreen';
 import KindlingScreen from './screens/KindlingScreen';
@@ -20,6 +22,13 @@ function composeText(kindlingId, templateIdx, picks) {
     .trim();
 }
 
+// Ember display fields (color/name) are derived from the kindling, not
+// stored per-message — this is the one place that joins the two.
+function toViewEmber(message) {
+  const b = KINDLING[message.kindlingId];
+  return { id: message.id, kindlingId: message.kindlingId, text: message.text, color: b.color, name: b.name };
+}
+
 export default function App() {
   const [screen, setScreen] = useState('home'); // home | pick | compose | confirm | read
   const [kindling, setKindling] = useState('vigil');
@@ -30,9 +39,13 @@ export default function App() {
   const [slot, setSlot] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [feedbackTone, setFeedbackTone] = useState('n');
-  const [used, setUsed] = useState(INITIAL_USED);
   const [dropped, setDropped] = useState('');
   const [starCount, setStarCount] = useState(150);
+
+  // messages is the single source of truth for every live ember — fetched
+  // once from the store (local in-memory, or Supabase once configured;
+  // see lib/store.js) and kept up to date by drop()/helpedEmber() below.
+  const [messages, setMessages] = useState([]);
 
   const [readingEmber, setReadingEmber] = useState(null);
   const [viewEmber, setViewEmber] = useState(null); // the ember shown on the dedicated read screen
@@ -41,36 +54,56 @@ export default function App() {
   const dragRef = useRef(null);
   const seenIdsRef = useRef(new Set()); // embers already surfaced in this browse, so swiping doesn't repeat
 
-  const liveTotal = Object.values(used).reduce((a, x) => a + x, 0);
-  const liveCountLabel = `${liveTotal} embers live`;
+  useEffect(() => {
+    let cancelled = false;
+    store.fetchState().then(({ messages: msgs, helpedCount }) => {
+      if (cancelled) return;
+      setMessages(msgs);
+      if (hasBackend) setStarCount((n) => n + helpedCount);
+    }).catch((err) => console.error('Failed to load messages:', err));
+    return () => { cancelled = true; };
+  }, []);
+
+  // how many live messages each kindling has — the scarcity count — is
+  // just a tally of `messages`, not separately tracked state
+  const used = useMemo(() => {
+    const u = {};
+    for (const id of KINDLING_IDS) u[id] = 0;
+    for (const m of messages) u[m.kindlingId] = (u[m.kindlingId] || 0) + 1;
+    return u;
+  }, [messages]);
+
+  const liveCountLabel = `${messages.length} embers live`;
 
   const goHome = () => { setScreen('home'); setFeedback(''); setRevealed(false); };
   const tapFire = () => setRevealed((r) => !r);
   const goPickDrop = () => setScreen('pick');
   const dismissEmber = () => setReadingEmber(null);
 
-  // draws a random ember, avoiding ones already seen this browse unless
-  // every ember has been shown, in which case it cycles back around
-  const pickRandomEmber = () => {
-    const e = fireRef.current?.randomEmber([...seenIdsRef.current]);
-    if (!e) return null;
-    if (seenIdsRef.current.has(e.id)) seenIdsRef.current = new Set([e.id]);
-    else seenIdsRef.current.add(e.id);
-    return e;
+  // draws a random message, avoiding ones already seen this browse unless
+  // every message has been shown, in which case it cycles back around
+  const pickRandomMessage = (pool) => {
+    if (!pool.length) return null;
+    const unseen = pool.filter((m) => !seenIdsRef.current.has(m.id));
+    const candidates = unseen.length ? unseen : pool;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    if (seenIdsRef.current.has(pick.id)) seenIdsRef.current = new Set([pick.id]);
+    else seenIdsRef.current.add(pick.id);
+    return pick;
   };
 
   const goViewEmbers = () => {
     seenIdsRef.current = new Set();
-    const e = pickRandomEmber();
-    if (!e) return;
-    setViewEmber(e);
+    const m = pickRandomMessage(messages);
+    if (!m) return;
+    setViewEmber(toViewEmber(m));
     setFeedback('');
     setScreen('read');
   };
 
   const swipeNextEmber = () => {
-    const e = pickRandomEmber();
-    if (e) { setViewEmber(e); setFeedback(''); } else goHome();
+    const m = pickRandomMessage(messages);
+    if (m) { setViewEmber(toViewEmber(m)); setFeedback(''); } else goHome();
   };
 
   const onWheel = (e) => {
@@ -127,33 +160,33 @@ export default function App() {
 
   const drop = () => {
     if (slotIdxsFor(kindling, template).some((i) => picks[i] === undefined)) return;
-    const total = totalFor(kindling);
     const text = composeText(kindling, template, picks);
-    setUsed((u) => ({ ...u, [kindling]: total > 0 ? Math.min(total, u[kindling] + 1) : u[kindling] + 1 }));
     setDropped(text);
     setScreen('confirm');
     fireRef.current?.flare();
-    fireRef.current?.addEmber(kindling, text);
+    store.dropMessage(kindling, text)
+      .then((message) => setMessages((ms) => [...ms, message]))
+      .catch((err) => console.error('Failed to save drop:', err));
   };
 
   const helpedEmber = () => {
     if (!viewEmber) return;
-    const total = totalFor(viewEmber.kindlingId);
-    if (total > 0) setUsed((u) => ({ ...u, [viewEmber.kindlingId]: Math.max(0, u[viewEmber.kindlingId] - 1) }));
-    fireRef.current?.removeEmberById(viewEmber.id);
+    const updated = messages.filter((m) => m.id !== viewEmber.id);
+    setMessages(updated);
     fireRef.current?.addStar();
     setStarCount((n) => n + 1);
     setFeedback('Risen. It joined the sky — a slot opened because it worked.');
     setFeedbackTone('g');
-    const next = pickRandomEmber();
-    if (next) setViewEmber(next); else goHome();
+    const next = pickRandomMessage(updated);
+    if (next) setViewEmber(toViewEmber(next)); else goHome();
+    store.markHelped(viewEmber.id).catch((err) => console.error('Failed to save "this helped":', err));
   };
 
   const notThisEmber = () => {
     setFeedback('Logged. A few more of those and it retires quietly.');
     setFeedbackTone('n');
-    const next = pickRandomEmber();
-    if (next) setViewEmber(next); else goHome();
+    const next = pickRandomMessage(messages);
+    if (next) setViewEmber(toViewEmber(next)); else goHome();
   };
 
   return (
@@ -182,6 +215,7 @@ export default function App() {
           revealed={revealed}
           used={used}
           activeEmberId={(screen === 'read' ? viewEmber?.id : readingEmber?.id) ?? null}
+          messages={messages}
         />
 
         {screen === 'home' && (
