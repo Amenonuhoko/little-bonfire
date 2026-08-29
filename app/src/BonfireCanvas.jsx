@@ -252,11 +252,13 @@ function mkEmber(st, message) {
     // a slow, independent turn (some clockwise, some not) so the coal
     // visibly rotates in place instead of just sitting there wobbling
     rot0: Math.random() * 6.2832, rotSp: (Math.random() - 0.5) * 0.12,
-    // the glow and body lean warm/fire-colored regardless of the kindling's
-    // own accent hue (even a cool blue-gray kindling should still read as
-    // a live coal, not a colored gem) — only the small core stays neutral
-    glowColor: mixHex(KINDLING[kindlingId].color, '#ff8a3d', 0.62),
-    bodyColor: mixHex(KINDLING[kindlingId].color, '#ff9d4d', 0.34),
+    // the body stays close to its kindling's own color — that identity
+    // (which message type this is) matters more than uniform fire-orange —
+    // with only a light warm lift so it still reads as lit rather than flat.
+    // The ambient glow leans warmer and heavier, since that's the part
+    // that should feel like firelight regardless of the coal's own hue.
+    glowColor: mixHex(KINDLING[kindlingId].color, '#ff8a3d', 0.42),
+    bodyColor: mixHex(KINDLING[kindlingId].color, '#ff9d4d', 0.12),
     // a couple of tiny sparks drifting in slow orbits around the coal,
     // like fireflies — the detail meant to make it look worth reaching for
     motes: [0, 1].map(() => ({
