@@ -7,12 +7,11 @@ function fillFrac(id, used, total) {
   return Math.max(0, Math.min(1, (used[id] || 0) / cap));
 }
 
-export default function KindlingScreen({ mode, used, activeKindling, onBack, onPick }) {
-  const title = mode === 'drop' ? 'What is this?' : 'What do you need?';
-  const sub =
-    mode === 'drop'
-      ? 'The word decides the template. Pick the one that stings, not the one that flatters.'
-      : 'One message, drawn at random from the kindling. No feed, no next.';
+// Only used to pick which kindling to drop a message into — reading now
+// happens via a random ember on the fire, not through this screen.
+export default function KindlingScreen({ used, activeKindling, onBack, onPick }) {
+  const title = 'What is this?';
+  const sub = 'The word decides the template. Pick the one that stings, not the one that flatters.';
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(10,11,13,.86),rgba(10,11,13,.97) 40%)', display: 'flex', flexDirection: 'column', padding: '64px 0 40px', animation: 'ddIn .35s ease' }}>
@@ -29,7 +28,7 @@ export default function KindlingScreen({ mode, used, activeKindling, onBack, onP
           const total = totalFor(id);
           const full = total > 0 && used[id] >= total;
           const isActive = id === activeKindling;
-          const disabled = mode === 'drop' && full;
+          const disabled = full;
           const frac = fillFrac(id, used, total);
           return (
             <div

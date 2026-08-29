@@ -22,14 +22,12 @@ function composeText(kindlingId, templateIdx, picks) {
 
 export default function App() {
   const [screen, setScreen] = useState('home'); // home | pick | compose | confirm | read
-  const [mode, setMode] = useState('drop'); // drop | read
   const [kindling, setKindling] = useState('vigil');
   const [template, setTemplate] = useState(0); // which flavor of the kindling is active
   const [revealed, setRevealed] = useState(false);
   const [sky, setSky] = useState(0); // 0 = at the fire, 1 = up in the sky
   const [picks, setPicks] = useState({});
   const [slot, setSlot] = useState(0);
-  const [readIdx, setReadIdx] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [feedbackTone, setFeedbackTone] = useState('n');
   const [used, setUsed] = useState(INITIAL_USED);
@@ -37,18 +35,43 @@ export default function App() {
   const [starCount, setStarCount] = useState(150);
 
   const [readingEmber, setReadingEmber] = useState(null);
+  const [viewEmber, setViewEmber] = useState(null); // the ember shown on the dedicated read screen
 
   const fireRef = useRef(null);
   const dragRef = useRef(null);
+  const seenIdsRef = useRef(new Set()); // embers already surfaced in this browse, so swiping doesn't repeat
 
   const liveTotal = Object.values(used).reduce((a, x) => a + x, 0);
   const liveCountLabel = `${liveTotal} embers live`;
 
   const goHome = () => { setScreen('home'); setFeedback(''); setRevealed(false); };
   const tapFire = () => setRevealed((r) => !r);
-  const goPickDrop = () => { setMode('drop'); setScreen('pick'); };
-  const goPickRead = () => { setMode('read'); setScreen('pick'); setFeedback(''); };
+  const goPickDrop = () => setScreen('pick');
   const dismissEmber = () => setReadingEmber(null);
+
+  // draws a random ember, avoiding ones already seen this browse unless
+  // every ember has been shown, in which case it cycles back around
+  const pickRandomEmber = () => {
+    const e = fireRef.current?.randomEmber([...seenIdsRef.current]);
+    if (!e) return null;
+    if (seenIdsRef.current.has(e.id)) seenIdsRef.current = new Set([e.id]);
+    else seenIdsRef.current.add(e.id);
+    return e;
+  };
+
+  const goViewEmbers = () => {
+    seenIdsRef.current = new Set();
+    const e = pickRandomEmber();
+    if (!e) return;
+    setViewEmber(e);
+    setFeedback('');
+    setScreen('read');
+  };
+
+  const swipeNextEmber = () => {
+    const e = pickRandomEmber();
+    if (e) { setViewEmber(e); setFeedback(''); } else goHome();
+  };
 
   const onWheel = (e) => {
     const d = e.deltaY;
@@ -76,8 +99,7 @@ export default function App() {
   const pickKindling = (id) => {
     const total = totalFor(id);
     const full = total > 0 && used[id] >= total;
-    if (mode === 'drop' && full) { setKindling(id); setFeedback(''); return; }
-    if (mode === 'read') { setKindling(id); setReadIdx(0); setFeedback(''); setScreen('read'); return; }
+    if (full) { setKindling(id); setFeedback(''); return; }
     const idxs = slotIdxsFor(id, 0);
     setKindling(id);
     setTemplate(0);
@@ -114,21 +136,24 @@ export default function App() {
     fireRef.current?.addEmber(kindling, text);
   };
 
-  const helped = () => {
-    const total = totalFor(kindling);
-    if (total > 0) setUsed((u) => ({ ...u, [kindling]: Math.max(0, u[kindling] - 1) }));
+  const helpedEmber = () => {
+    if (!viewEmber) return;
+    const total = totalFor(viewEmber.kindlingId);
+    if (total > 0) setUsed((u) => ({ ...u, [viewEmber.kindlingId]: Math.max(0, u[viewEmber.kindlingId] - 1) }));
+    fireRef.current?.removeEmberById(viewEmber.id);
+    fireRef.current?.addStar();
+    setStarCount((n) => n + 1);
     setFeedback('Risen. It joined the sky — a slot opened because it worked.');
     setFeedbackTone('g');
-    setReadIdx((i) => (i + 1) % KINDLING[kindling].live.length);
-    fireRef.current?.addStar();
-    fireRef.current?.removeOldestEmber();
-    setStarCount((n) => n + 1);
+    const next = pickRandomEmber();
+    if (next) setViewEmber(next); else goHome();
   };
 
-  const notThis = () => {
+  const notThisEmber = () => {
     setFeedback('Logged. A few more of those and it retires quietly.');
     setFeedbackTone('n');
-    setReadIdx((i) => (i + 1) % KINDLING[kindling].live.length);
+    const next = pickRandomEmber();
+    if (next) setViewEmber(next); else goHome();
   };
 
   return (
@@ -156,7 +181,7 @@ export default function App() {
           sky={sky}
           revealed={revealed}
           used={used}
-          activeEmberId={readingEmber?.id ?? null}
+          activeEmberId={(screen === 'read' ? viewEmber?.id : readingEmber?.id) ?? null}
         />
 
         {screen === 'home' && (
@@ -173,12 +198,12 @@ export default function App() {
             onMove={onMove}
             onUp={onUp}
             onDrop={goPickDrop}
-            onRead={goPickRead}
+            onRead={goViewEmbers}
           />
         )}
 
         {screen === 'pick' && (
-          <KindlingScreen mode={mode} used={used} activeKindling={kindling} onBack={goHome} onPick={pickKindling} />
+          <KindlingScreen used={used} activeKindling={kindling} onBack={goHome} onPick={pickKindling} />
         )}
 
         {screen === 'compose' && (
@@ -199,15 +224,15 @@ export default function App() {
           <ConfirmScreen kindlingId={kindling} droppedText={dropped} onDismiss={goHome} />
         )}
 
-        {screen === 'read' && (
+        {screen === 'read' && viewEmber && (
           <ReadScreen
-            kindlingId={kindling}
-            readIdx={readIdx}
+            ember={viewEmber}
             feedback={feedback}
             feedbackTone={feedbackTone}
-            onBack={goPickRead}
-            onHelped={helped}
-            onNotThis={notThis}
+            onBack={goHome}
+            onHelped={helpedEmber}
+            onNotThis={notThisEmber}
+            onSwipeNext={swipeNextEmber}
           />
         )}
       </div>

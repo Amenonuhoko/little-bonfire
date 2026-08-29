@@ -33,6 +33,10 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     removeOldestEmber() {
       if (s.current && s.current.embers.length) s.current.embers.shift();
     },
+    removeEmberById(id) {
+      if (!s.current) return;
+      s.current.embers = s.current.embers.filter((e) => e.id !== id);
+    },
     addStar() {
       if (!s.current) return;
       s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0 });
@@ -49,7 +53,20 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
         const d = Math.hypot(px - e.x * st.w, py - e.y);
         if (d < bestD) { bestD = d; best = e; }
       }
-      return best ? { id: best.id, name: best.name, color: best.c, text: best.text } : null;
+      return best ? { id: best.id, name: best.name, color: best.c, text: best.text, kindlingId: best.kindlingId } : null;
+    },
+    // picks a random real ember, preferring one whose id isn't in
+    // excludeIds — the caller's "already seen this browse" list — but
+    // falls back to the full pool once every ember has been excluded,
+    // so browsing cycles instead of dead-ending.
+    randomEmber(excludeIds) {
+      const st = s.current;
+      if (!st || !st.embers.length) return null;
+      const excl = excludeIds || [];
+      const pool = st.embers.filter((e) => !excl.includes(e.id));
+      const list = pool.length ? pool : st.embers;
+      const pick = list[Math.floor(Math.random() * list.length)];
+      return { id: pick.id, name: pick.name, color: pick.c, text: pick.text, kindlingId: pick.kindlingId };
     },
   }));
 
@@ -196,6 +213,7 @@ function mkEmber(st, kindlingId, text) {
   const emberId = emberSeq++;
   return {
     id: emberId,
+    kindlingId,
     c: KINDLING[kindlingId].color,
     name: KINDLING[kindlingId].name,
     text: text || live[emberId % live.length].t,
