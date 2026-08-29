@@ -45,10 +45,25 @@ const localStore = {
   },
 };
 
+async function postJson(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `${path} failed (${res.status})`);
+  return data;
+}
+
 // ---------------------------------------------------------------------
-// Remote (Supabase) implementation. See db/schema.sql for the table,
-// the `live_messages` view (excludes helped and aged-out rows), and the
-// `mark_helped` function this calls into instead of an open UPDATE grant.
+// Remote (Supabase) implementation. Reads go straight to Supabase with
+// the public anon key (see db/schema.sql — reads are the one thing RLS
+// leaves open to everyone, since none of this is sensitive). Writes go
+// through the /api/drop and /api/help serverless functions instead of
+// an anon insert/update, so the service-role key they use never has to
+// exist in the browser — see db/schema.sql's RLS comment for why that
+// matters and app/api/*.js for the functions themselves.
 // ---------------------------------------------------------------------
 const remoteStore = {
   async fetchState() {
@@ -64,17 +79,11 @@ const remoteStore = {
     };
   },
   async dropMessage(kindlingId, text) {
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({ kindling_id: kindlingId, text, client_token: getClientToken() })
-      .select('id, kindling_id, text')
-      .single();
-    if (error) throw error;
-    return { id: data.id, kindlingId: data.kindling_id, text: data.text };
+    const data = await postJson('/api/drop', { kindlingId, text, clientToken: getClientToken() });
+    return { id: data.id, kindlingId: data.kindlingId, text: data.text };
   },
   async markHelped(id) {
-    const { error } = await supabase.rpc('mark_helped', { target_id: id });
-    if (error) throw error;
+    await postJson('/api/help', { id });
   },
 };
 

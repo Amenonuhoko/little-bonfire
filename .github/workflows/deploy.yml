@@ -30,9 +30,14 @@ jobs:
       - name: Build
         working-directory: app
         env:
+          GITHUB_PAGES: 'true'
           # Empty until the two repo secrets below are set (Settings →
-          # Secrets and variables → Actions) — the app runs in local-only
-          # fallback mode until then. See README.md.
+          # Secrets and variables → Actions). Note that GitHub Pages is
+          # static-only — it can't host the app/api serverless functions
+          # writes now go through (see README.md's Security section), so
+          # setting these here only enables reading the live database,
+          # not dropping/helping messages. Drops persisting requires the
+          # Vercel deploy.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build

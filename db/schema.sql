@@ -15,12 +15,18 @@ create table if not exists messages (
   kindling_id  text not null check (kindling_id in ('disgrace', 'ruin', 'vigil', 'resolve', 'grace')),
   text         text not null check (char_length(text) between 10 and 500),
   client_token text not null check (char_length(client_token) between 8 and 100),
+  -- sha256 of the dropper's IP, computed server-side in app/api/drop.js —
+  -- never the raw IP. Nullable because it only exists on rows inserted
+  -- through that endpoint (seed rows, and anything inserted before this
+  -- column existed, have none).
+  ip_hash      text,
   created_at   timestamptz not null default now(),
   helped_at    timestamptz
 );
 
 create index if not exists messages_live_idx on messages (kindling_id, created_at) where helped_at is null;
-create index if not exists messages_rate_limit_idx on messages (client_token, created_at);
+create index if not exists messages_rate_limit_token_idx on messages (client_token, created_at);
+create index if not exists messages_rate_limit_ip_idx on messages (ip_hash, created_at) where ip_hash is not null;
 
 -- created_at / helped_at / id are never trusted from the client — this
 -- forces every insert back to server-assigned values regardless of what
@@ -43,11 +49,13 @@ create trigger messages_reset_server_columns
   before insert on messages
   for each row execute function reset_server_columns();
 
--- A soft per-device speed bump, not real abuse protection: the client
--- generates a random token once (see app/src/lib/clientToken.js) and
--- persists it in localStorage. Anyone can clear storage and bypass
--- this, so it stops accidental double-taps and naive scripts, not a
--- determined spammer — see README.md for real anti-abuse follow-ups.
+-- Two independent speed bumps, checked together: client_token (a random
+-- value the browser persists in localStorage — trivially reset by
+-- clearing storage) and ip_hash (set server-side in app/api/drop.js,
+-- not client-controlled at all). Neither is real abuse protection on
+-- its own — IPs are shared behind NAT/offices, and a determined spammer
+-- can rotate both — but together they stop accidental double-taps and
+-- naive scripts. See README.md for real anti-abuse follow-ups.
 create or replace function enforce_rate_limit()
 returns trigger
 language plpgsql
@@ -55,10 +63,13 @@ as $$
 begin
   if exists (
     select 1 from messages
-    where client_token = new.client_token
-      and created_at > now() - interval '20 seconds'
+    where created_at > now() - interval '20 seconds'
+      and (
+        client_token = new.client_token
+        or (new.ip_hash is not null and ip_hash = new.ip_hash)
+      )
   ) then
-    raise exception 'Slow down — try again in a moment.' using errcode = '23505';
+    raise exception 'Slow down — try again in a moment.';
   end if;
   return new;
 end;
@@ -83,26 +94,40 @@ with (security_invoker = on) as
 
 -- ---------------------------------------------------------------------
 -- Row Level Security
+--
+-- Reads stay public (nothing here is sensitive — no accounts, no PII,
+-- just anonymous text). Writes do NOT: there is deliberately no insert
+-- or update policy for anon/authenticated. Every drop and every "this
+-- helped" goes through the app/api/drop.js and app/api/help.js
+-- serverless functions, which use the service-role key — a key that
+-- bypasses RLS entirely and must never reach the browser (it's read
+-- from process.env.SUPABASE_SERVICE_ROLE_KEY server-side only, never
+-- the VITE_-prefixed vars Vite bundles into client code).
+--
+-- The payoff: even someone who reads the anon key out of the deployed
+-- JS bundle and calls Supabase's REST API directly can only ever SELECT
+-- — not insert a message or mark one helped. Both of those triggers
+-- above (reset_server_columns, enforce_rate_limit) still run for the
+-- service-role path too, since triggers apply regardless of who's
+-- writing — RLS and triggers are independent, so this isn't "trust the
+-- server instead," it's "trust the server AND keep the same guardrails."
 -- ---------------------------------------------------------------------
 alter table messages enable row level security;
+
+drop policy if exists "public can drop a message" on messages;
 
 drop policy if exists "public can read messages" on messages;
 create policy "public can read messages" on messages
   for select using (true);
 
-drop policy if exists "public can drop a message" on messages;
-create policy "public can drop a message" on messages
-  for insert with check (true);
-
--- No update or delete policy: nobody can edit a message's text, and
--- "helped" can only happen through mark_helped() below, never a raw
--- UPDATE — see that function for why.
+-- No insert, update, or delete policy for anon/authenticated at all.
 
 -- ---------------------------------------------------------------------
--- Marking a message "helped" goes through this function instead of an
--- UPDATE grant, so a client can only ever flip helped_at from null to
--- now() on one row it names by id — never touch kindling_id or text,
--- never un-help a message, never touch a row that isn't null already.
+-- Marking a message "helped" goes through this function rather than a
+-- raw UPDATE, even from the service role: it can only ever flip
+-- helped_at from null to now() on one row named by id — never touch
+-- kindling_id or text, never un-help a message — a second guardrail in
+-- case app/api/help.js itself ever has a bug.
 -- ---------------------------------------------------------------------
 create or replace function mark_helped(target_id uuid)
 returns void
@@ -119,7 +144,7 @@ end;
 $$;
 
 revoke all on function mark_helped(uuid) from public;
-grant execute on function mark_helped(uuid) to anon, authenticated;
+grant execute on function mark_helped(uuid) to service_role;
 
 -- ---------------------------------------------------------------------
 -- Seed rows — one real example per kindling, the same text the app
