@@ -303,12 +303,33 @@ function fillAtX(xFrac, fill) {
   return 0.5;
 }
 
+// The one landform silhouette shared by every curve in the scene — the
+// distant mountains, the far horizon, and the near shoreline are all the
+// same terrain, just seen from different distances, so they all read off
+// this same rolling-hill shape (one big swell plus a smaller out-of-phase
+// one) rather than wobbling independently of each other.
+function terrainHill(xFrac) {
+  return Math.sin(xFrac * Math.PI + 0.5) * 16 + Math.sin(xFrac * 2 * Math.PI + 2.1) * 9;
+}
+
+// Floors a recede value at 0 without the hard corner a plain Math.max(0, v)
+// would leave — when fill is low, hill+detail can dip slightly negative,
+// and clamping that with a hard max puts a sharp, non-smooth kink right in
+// the middle of an otherwise smooth curve. This blends over `softness` px
+// instead (a quadratic ease matching both value and slope at the seam), so
+// the curve still settles at 0 but without ever visibly creasing.
+function softFloor(v, softness) {
+  if (v >= softness) return v;
+  if (v <= -softness) return 0;
+  const t = (v + softness) / (2 * softness);
+  return softness * t * t;
+}
+
 // The fuller a kindling, the further its stretch of shoreline recedes from
 // the camera — dramatically more so now (45 vs the old 10) so the fill
-// actually reshapes the terrain instead of nudging it. On top of that, a
-// genuine rolling-hill silhouette (`hill`, one big swell plus a smaller
-// out-of-phase one) plus finer ripples (`detail`) — both independent of
-// fill — so the line reads as real terrain rather than a flat/straight
+// actually reshapes the terrain instead of nudging it. On top of that, the
+// shared terrain silhouette (`hill`) plus finer ripples (`detail`, independent
+// of fill) — so the line reads as real terrain rather than a flat/straight
 // edge even when every kindling's fill is close to equal (which makes the
 // fill-driven `base` term alone nearly flat). Only ever recedes (moves up)
 // from the baseline — it never dips below it, so the tree line can't end
@@ -316,23 +337,25 @@ function fillAtX(xFrac, fill) {
 const SHORE_RECEDE_MAX = 45;
 function shoreRecede(xFrac, fill) {
   const base = fillAtX(xFrac, fill) * SHORE_RECEDE_MAX;
-  const hill = Math.sin(xFrac * Math.PI + 0.5) * 16 + Math.sin(xFrac * 2 * Math.PI + 2.1) * 9;
+  const hill = terrainHill(xFrac);
   const detail = Math.sin(xFrac * 15.3 + 1.7) * 4 + Math.sin(xFrac * 37.1 + 4.2) * 2;
-  return Math.max(0, base + hill + detail);
+  return softFloor(base + hill + detail, 6);
 }
 
 // The near shoreline — the water's edge right beside the campsite, not the
 // distant horizon line above. This is the one people actually see up
-// close, so it gets a much bigger recede range than the distant curve, its
-// own independent hill+detail noise (so it doesn't just mirror that
-// curve), and a slow traveling-wave term for a little live motion —
-// "fluid, not stiff."
+// close, so it gets a much bigger recede range than the distant curve. Its
+// main swell is the same shared `terrainHill` as the distant curve above
+// (scaled up for how much closer it is), so the near bank reads as the same
+// landform curving in close rather than an unrelated line — with its own
+// finer ripples (`detail`) on top for close-up water texture.
 const BANK_RECEDE_MAX = 70;
+const BANK_HILL_SCALE = BANK_RECEDE_MAX / SHORE_RECEDE_MAX;
 function bankRecede(xFrac, fill) {
   const base = fillAtX(xFrac, fill) * BANK_RECEDE_MAX;
-  const hill = Math.sin(xFrac * Math.PI) * 26 + Math.sin(xFrac * 2 * Math.PI + 1.4) * 13;
+  const hill = terrainHill(xFrac) * BANK_HILL_SCALE;
   const detail = Math.sin(xFrac * 11.7 + 0.4) * 8 + Math.sin(xFrac * 21.3 + 2.8) * 4;
-  return Math.max(0, base + hill + detail);
+  return softFloor(base + hill + detail, 10);
 }
 function bankYAt(xFrac, fill, t, fy) {
   const xf = Math.max(0, Math.min(1, xFrac));
@@ -478,10 +501,16 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // real ridge silhouette lower down.
   ctx.save();
   ctx.filter = 'blur(3.5px)';
-  const mtnPts = [];
+  const mtnPts = [], mtnBasePts = [];
   for (let x = -10; x <= w + 10; x += 14) {
-    const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), fill);
+    const xf = Math.max(0, Math.min(1, x / w));
+    const recede = shoreRecede(xf, fill);
     mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10 - recede]);
+    // the mountain's own foot — sits right on the actual water curve below
+    // it (the same recede value the horizon line itself uses just below),
+    // instead of a flat cut, so the range appears to rise straight out of
+    // the water's real shape rather than floating above/through it
+    mtnBasePts.push([x, waterTop + 6 - recede]);
   }
   const mtnTopY = Math.min(...mtnPts.map((p) => p[1]));
   const mg2 = ctx.createLinearGradient(0, mtnTopY - 50, 0, waterTop + 6);
@@ -490,10 +519,10 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   mg2.addColorStop(0.65, 'rgba(18,22,32,0.6)');
   mg2.addColorStop(1, 'rgba(18,22,32,0.8)');
   ctx.fillStyle = mg2;
-  ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
-  ctx.lineTo(mtnPts[0][0], mtnPts[0][1]);
+  ctx.beginPath(); ctx.moveTo(mtnPts[0][0], mtnPts[0][1]);
   curveThrough(ctx, mtnPts, 0);
-  ctx.lineTo(w + 10, waterTop + 6); ctx.closePath(); ctx.fill();
+  curveThroughReversed(ctx, mtnBasePts, 0);
+  ctx.closePath(); ctx.fill();
   ctx.restore();
 
   // the distant horizon line — where the far side of the lake meets the
@@ -571,18 +600,20 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.closePath(); ctx.clip();
 
   const rTop = bank - (bank - waterTop) * 0.62;
-  const refl = ctx.createLinearGradient(0, bank, 0, rTop);
-  refl.addColorStop(0, 'rgba(255,140,50,0.22)');
-  refl.addColorStop(0.35, 'rgba(226,106,34,0.08)');
-  refl.addColorStop(1, 'rgba(200,88,28,0)');
+  // the flame's reflection — a soft radial glow with no hard silhouette, so
+  // it reads as light spreading into the water rather than a sharply
+  // clipped geometric wedge sitting on top of the lake
+  const reflCy = bank - (bank - rTop) * 0.55;
+  const reflR = 34 * flick;
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(fx - 38 * flick, bank);
-  ctx.quadraticCurveTo(fx - 22, rTop + 30, fx - 7, rTop);
-  ctx.lineTo(fx + 7, rTop);
-  ctx.quadraticCurveTo(fx + 22, rTop + 30, fx + 38 * flick, bank);
-  ctx.closePath(); ctx.clip();
-  ctx.fillStyle = refl; ctx.fillRect(fx - 70, rTop, 140, bank - rTop);
+  ctx.translate(fx, reflCy);
+  ctx.scale(1, (bank - rTop) / reflR / 1.7);
+  const refl = ctx.createRadialGradient(0, 0, 0, 0, 0, reflR);
+  refl.addColorStop(0, 'rgba(255,150,60,0.26)');
+  refl.addColorStop(0.4, 'rgba(230,110,36,0.1)');
+  refl.addColorStop(1, 'rgba(200,88,28,0)');
+  ctx.fillStyle = refl;
+  ctx.beginPath(); ctx.arc(0, 0, reflR, 0, 6.2832); ctx.fill();
   ctx.restore();
   for (let i = 0; i < 14; i++) {
     const f = (i + 0.5) / 14;
@@ -604,19 +635,24 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     ctx.fillRect(st_.x * w - 3 + Math.sin(st.t * 0.3 + st_.tw) * 1, y, 6, 1.1);
   }
   ctx.restore();
+  // glints: a stable per-line hash breaks up what would otherwise be 26
+  // perfectly evenly-spaced rows (a "venetian blind" scanline pattern) into
+  // irregular streaks of varying position, width and thickness
   for (let i = 0; i < 26; i++) {
-    const f = i / 26;
+    const hash = Math.sin(i * 12.9898) * 43758.5453;
+    const jitter = hash - Math.floor(hash);
+    const f = (i + jitter * 0.8) / 26;
     const y = waterTop + 6 + f * (bank - waterTop - 6);
     const off = Math.sin(st.t * 0.5 + i * 1.7) * 40;
-    const sgw = w * (0.35 + 0.5 * Math.abs(Math.sin(i * 1.3)));
+    const sgw = w * (0.28 + 0.5 * jitter);
     const sx = fx + off - sgw / 2;
     const sh = ctx.createLinearGradient(sx, 0, sx + sgw, 0);
-    const sa = (0.03 + 0.07 * (1 - f)).toFixed(3);
+    const sa = (0.02 + 0.06 * (1 - f) * (0.35 + 0.65 * jitter)).toFixed(3);
     sh.addColorStop(0, 'rgba(159,176,196,0)');
     sh.addColorStop(0.5, 'rgba(159,176,196,' + sa + ')');
     sh.addColorStop(1, 'rgba(159,176,196,0)');
     ctx.globalAlpha = 1; ctx.fillStyle = sh;
-    ctx.fillRect(sx, y, sgw, 0.8);
+    ctx.fillRect(sx, y, sgw, 0.5 + jitter * 0.9);
   }
   ctx.restore();
   ctx.globalAlpha = 1;
