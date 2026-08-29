@@ -30,7 +30,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     flare() { if (s.current) s.current.flare = 1; },
     addStar() {
       if (!s.current) return;
-      s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0, hue: Math.random() });
+      s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0, hue: Math.random(), entity: true });
     },
     // finds the ember (if any) whose fixed clickable zone contains
     // (px, py), in canvas-local coordinates. Tested against the ember's
@@ -79,9 +79,13 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
         hue: Math.random(), sp: 0.3 + Math.random() * 0.4, ph: Math.random() * 6.28,
       });
     }
+    // ambient background stars — atmosphere/fill only, not tied to any real
+    // "this helped" message (`entity: false`), so they render smaller and
+    // fainter than the real ones `addStar()` adds — those are the ones
+    // that should actually stand out as someone's fire having helped
     for (let i = 0; i < 150; i++) {
       const likes = Math.round(6 + Math.pow(Math.random(), 2.6) * 240);
-      st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28, hue: Math.random() });
+      st.stars.push({ x: Math.random(), y: Math.random(), likes, b: Math.min(1, Math.pow(likes / 220, 0.7)), tw: Math.random() * 6.28, hue: Math.random(), entity: false });
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
@@ -301,32 +305,67 @@ function fillAtX(xFrac, fill) {
 
 // The fuller a kindling, the further its stretch of shoreline recedes from
 // the camera — dramatically more so now (45 vs the old 10) so the fill
-// actually reshapes the terrain instead of nudging it. A layer of organic
-// noise, independent of fill, keeps it from ever reading as one clean
-// wave even where the fill itself is flat. Only ever recedes (moves up)
+// actually reshapes the terrain instead of nudging it. On top of that, a
+// genuine rolling-hill silhouette (`hill`, one big swell plus a smaller
+// out-of-phase one) plus finer ripples (`detail`) — both independent of
+// fill — so the line reads as real terrain rather than a flat/straight
+// edge even when every kindling's fill is close to equal (which makes the
+// fill-driven `base` term alone nearly flat). Only ever recedes (moves up)
 // from the baseline — it never dips below it, so the tree line can't end
 // up looking like it's standing in the water.
 const SHORE_RECEDE_MAX = 45;
 function shoreRecede(xFrac, fill) {
   const base = fillAtX(xFrac, fill) * SHORE_RECEDE_MAX;
-  const noise = Math.sin(xFrac * 15.3 + 1.7) * 7 + Math.sin(xFrac * 37.1 + 4.2) * 3.5;
-  return Math.max(0, base + noise);
+  const hill = Math.sin(xFrac * Math.PI + 0.5) * 16 + Math.sin(xFrac * 2 * Math.PI + 2.1) * 9;
+  const detail = Math.sin(xFrac * 15.3 + 1.7) * 4 + Math.sin(xFrac * 37.1 + 4.2) * 2;
+  return Math.max(0, base + hill + detail);
 }
 
 // The near shoreline — the water's edge right beside the campsite, not the
 // distant horizon line above. This is the one people actually see up
-// close, so it gets a much bigger recede range than the distant curve,
-// its own independent noise (so it doesn't just mirror that curve), and a
-// slow traveling-wave term for a little live motion — "fluid, not stiff."
+// close, so it gets a much bigger recede range than the distant curve, its
+// own independent hill+detail noise (so it doesn't just mirror that
+// curve), and a slow traveling-wave term for a little live motion —
+// "fluid, not stiff."
 const BANK_RECEDE_MAX = 70;
 function bankRecede(xFrac, fill) {
   const base = fillAtX(xFrac, fill) * BANK_RECEDE_MAX;
-  const noise = Math.sin(xFrac * 11.7 + 0.4) * 11 + Math.sin(xFrac * 29.3 + 2.8) * 5.5;
-  return Math.max(0, base + noise);
+  const hill = Math.sin(xFrac * Math.PI) * 26 + Math.sin(xFrac * 2 * Math.PI + 1.4) * 13;
+  const detail = Math.sin(xFrac * 11.7 + 0.4) * 8 + Math.sin(xFrac * 21.3 + 2.8) * 4;
+  return Math.max(0, base + hill + detail);
 }
 function bankYAt(xFrac, fill, t, fy) {
   const xf = Math.max(0, Math.min(1, xFrac));
   return fy - 34 - bankRecede(xf, fill) + Math.sin(t * 0.12 + xf * 6) * 2.5;
+}
+
+// Sparse sample points connected by straight `lineTo` segments spike
+// whenever one sample lands far from its neighbors — exactly what the
+// hill/detail noise above now does on purpose. These two draw a smooth
+// curve through the same points instead: each source point becomes a
+// quadratic control point and the curve actually passes through the
+// midpoints between consecutive points, so the line bends continuously
+// with no sharp single-point kinks. `curveThrough` assumes the pen is
+// already at `pts[0]+dy` (callers `moveTo`/`lineTo` there first);
+// `curveThroughReversed` walks the same points end-to-start, for closing a
+// fill shape back along the same curve at a (possibly different) offset.
+function curveThrough(ctx, pts, dy) {
+  const n = pts.length;
+  for (let i = 1; i < n - 1; i++) {
+    const xc = (pts[i][0] + pts[i + 1][0]) / 2;
+    const yc = (pts[i][1] + pts[i + 1][1]) / 2 + dy;
+    ctx.quadraticCurveTo(pts[i][0], pts[i][1] + dy, xc, yc);
+  }
+  ctx.lineTo(pts[n - 1][0], pts[n - 1][1] + dy);
+}
+function curveThroughReversed(ctx, pts, dy) {
+  const n = pts.length;
+  for (let i = n - 2; i > 0; i--) {
+    const xc = (pts[i][0] + pts[i - 1][0]) / 2;
+    const yc = (pts[i][1] + pts[i - 1][1]) / 2 + dy;
+    ctx.quadraticCurveTo(pts[i][0], pts[i][1] + dy, xc, yc);
+  }
+  ctx.lineTo(pts[0][0], pts[0][1] + dy);
 }
 
 function draw(st, screen, sky, revealed, used, activeEmberId) {
@@ -410,15 +449,19 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     const b = Math.min(1, st_.b * skyBoost);
     const tw = 0.72 + 0.28 * Math.sin(st.t * (0.5 + b) + st_.tw);
     const warm = st_.hue > 0.5;
-    ctx.globalAlpha = (0.24 + 0.76 * b * b) * tw;
+    // ambient background stars (entity: false) stay small and understated —
+    // dimmer, smaller, and past the point where they'd earn a glow/flare —
+    // so the real ones a live "this helped" actually adds are what pop
+    const amb = st_.entity === false;
+    ctx.globalAlpha = (0.24 + 0.76 * b * b) * tw * (amb ? 0.5 : 1);
     ctx.fillStyle = b > 0.55 ? (warm ? '#fff6e2' : '#eef4ff') : b > 0.28 ? (warm ? '#e8dcc4' : '#cfdcee') : '#b9b2a3';
-    const r = 0.7 + 2.3 * b;
+    const r = (0.7 + 2.3 * b) * (amb ? 0.55 : 1);
     ctx.beginPath(); ctx.arc(st_.x * w, y, r, 0, 6.2832); ctx.fill();
-    if (b > 0.38) {
+    if (b > 0.38 && !amb) {
       ctx.globalAlpha = (0.08 + 0.2 * b) * tw;
       ctx.beginPath(); ctx.arc(st_.x * w, y, r * 3.2, 0, 6.2832); ctx.fill();
     }
-    if (b > 0.64) {
+    if (b > 0.64 && !amb) {
       ctx.globalAlpha = 0.22 * tw;
       ctx.lineWidth = 0.7; ctx.strokeStyle = warm ? '#fff6e2' : '#eef4ff';
       ctx.beginPath();
@@ -436,7 +479,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.save();
   ctx.filter = 'blur(3.5px)';
   const mtnPts = [];
-  for (let x = -10; x <= w + 10; x += 24) {
+  for (let x = -10; x <= w + 10; x += 14) {
     const recede = shoreRecede(Math.max(0, Math.min(1, x / w)), fill);
     mtnPts.push([x, waterTop - 30 - Math.abs(Math.sin(x * 0.006 + 2)) * 26 - Math.sin(x * 0.014) * 10 - recede]);
   }
@@ -448,7 +491,8 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   mg2.addColorStop(1, 'rgba(18,22,32,0.8)');
   ctx.fillStyle = mg2;
   ctx.beginPath(); ctx.moveTo(-10, waterTop + 6);
-  for (const p of mtnPts) ctx.lineTo(p[0], p[1]);
+  ctx.lineTo(mtnPts[0][0], mtnPts[0][1]);
+  curveThrough(ctx, mtnPts, 0);
   ctx.lineTo(w + 10, waterTop + 6); ctx.closePath(); ctx.fill();
   ctx.restore();
 
@@ -456,7 +500,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   // sky, well behind everything else. Not the shoreline people actually
   // stand near (that's bankPts below) — this is background.
   const shorePts = [];
-  for (let x = -10; x <= w + 10; x += 20) {
+  for (let x = -10; x <= w + 10; x += 12) {
     shorePts.push([x, waterTop - shoreRecede(Math.max(0, Math.min(1, x / w)), fill)]);
   }
   if (shorePts[shorePts.length - 1][0] < w + 10) {
@@ -464,14 +508,14 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   }
   const traceShoreTop = (dy) => {
     ctx.moveTo(shorePts[0][0], shorePts[0][1] + dy);
-    for (const p of shorePts) ctx.lineTo(p[0], p[1] + dy);
+    curveThrough(ctx, shorePts, dy);
   };
 
   // the real shoreline — the near water's edge right beside the campsite,
   // just above where the near trees/bushes sit. This is the one that
   // needs to clearly and fluidly reflect kindling distribution.
   const bankPts = [];
-  for (let x = -10; x <= w + 10; x += 18) {
+  for (let x = -10; x <= w + 10; x += 10) {
     bankPts.push([x, bankYAt(x / w, fill, st.t, fy)]);
   }
   if (bankPts[bankPts.length - 1][0] < w + 10) {
@@ -479,7 +523,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   }
   const traceBankTop = (dy) => {
     ctx.moveTo(bankPts[0][0], bankPts[0][1] + dy);
-    for (const p of bankPts) ctx.lineTo(p[0], p[1] + dy);
+    curveThrough(ctx, bankPts, dy);
   };
 
   // atmospheric haze: a subtle blend so the shoreline doesn't end in a hard
@@ -492,7 +536,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.fillStyle = haze;
   ctx.beginPath();
   traceShoreTop(-8);
-  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 50);
+  curveThroughReversed(ctx, shorePts, 50);
   ctx.closePath(); ctx.fill();
 
   // the distant horizon's own rim — a real, bright, deliberately visible
@@ -502,7 +546,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.fillStyle = 'rgba(214,174,124,0.55)';
   ctx.beginPath();
   traceShoreTop(-1.3);
-  for (let i = shorePts.length - 1; i >= 0; i--) ctx.lineTo(shorePts[i][0], shorePts[i][1] + 1.3);
+  curveThroughReversed(ctx, shorePts, 1.3);
   ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1;
 
@@ -514,7 +558,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   wg.addColorStop(0.55, '#06080d'); wg.addColorStop(1, '#04060a');
   const traceLakeBed = () => {
     traceShoreTop(0);
-    for (let i = bankPts.length - 1; i >= 0; i--) ctx.lineTo(bankPts[i][0], bankPts[i][1]);
+    curveThroughReversed(ctx, bankPts, 0);
   };
   ctx.fillStyle = wg;
   ctx.beginPath();
@@ -552,7 +596,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.save();
   ctx.filter = 'blur(1.4px)';
   for (const st_ of st.stars) {
-    if (st_.b < 0.5) continue;
+    if (st_.b < 0.5 || st_.entity === false) continue;
     const y = bank - 4 - ((st_.x * 7919) % 1000) / 1000 * (bank - waterTop) * 0.8;
     ctx.globalAlpha = 0.1 + 0.22 * st_.b;
     ctx.fillStyle = '#e9dcc0';
@@ -587,7 +631,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.fillStyle = bankMist;
   ctx.beginPath();
   traceBankTop(-30);
-  for (let i = bankPts.length - 1; i >= 0; i--) ctx.lineTo(bankPts[i][0], bankPts[i][1] + 22);
+  curveThroughReversed(ctx, bankPts, 22);
   ctx.closePath(); ctx.fill();
 
   // near bank — the real shoreline's own ground, its wavy top edge is
@@ -606,7 +650,7 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.fillStyle = wl;
   ctx.beginPath();
   traceBankTop(-0.9);
-  for (let i = bankPts.length - 1; i >= 0; i--) ctx.lineTo(bankPts[i][0], bankPts[i][1] + 0.9);
+  curveThroughReversed(ctx, bankPts, 0.9);
   ctx.closePath(); ctx.fill();
   ctx.save();
   ctx.beginPath(); ctx.rect(-10, bank - 4, w + 20, h - bank + 90); ctx.clip();
