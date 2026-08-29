@@ -1,4 +1,4 @@
-# Dead Drop
+# Little Bonfire
 
 An anonymous, mood-based messaging app modeled on the Dark Souls/Elden Ring message system: brief, templated notes left for strangers. No profiles, no feeds, no replies — you open the app because you feel something, and either read or drop.
 
