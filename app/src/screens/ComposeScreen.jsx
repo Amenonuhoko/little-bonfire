@@ -6,12 +6,20 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
   const slotIdxs = tmpl.parts.map((p, i) => (p.opts ? i : -1)).filter((i) => i >= 0);
   const allPicked = slotIdxs.every((i) => picks[i] !== undefined);
   const slotOpts = (tmpl.parts[slot] && tmpl.parts[slot].opts) || [];
+  // buttons get their own pointer handlers (with stopPropagation) instead
+  // of onClick — a plain click can otherwise land a beat late, on whatever
+  // ends up under the same coordinates once a screen transition settles
+  const stop = (e) => e.stopPropagation();
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,rgba(9,10,12,.9),rgba(9,10,12,.98))', display: 'flex', flexDirection: 'column', padding: '64px 0 34px', animation: 'ddIn .6s cubic-bezier(.16,1,.3,1)' }}>
       <div style={{ padding: '0 24px 14px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div onClick={onBack} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer' }}>
+          <div
+            onPointerDown={stop}
+            onPointerUp={(e) => { stop(e); onBack(); }}
+            style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.4)', cursor: 'pointer' }}
+          >
             ← kindling
           </div>
           <div style={{ fontFamily: "'Young Serif',serif", fontSize: 24, color: b.color }}>{b.name}</div>
@@ -26,7 +34,8 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
             return (
               <div
                 key={t.key}
-                onClick={() => i !== templateIdx && onSelectTemplate(i)}
+                onPointerDown={stop}
+                onPointerUp={(e) => { stop(e); if (i !== templateIdx) onSelectTemplate(i); }}
                 style={{
                   flex: '0 0 auto', padding: '8px 13px', borderRadius: 999, whiteSpace: 'nowrap',
                   fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, letterSpacing: '.05em',
@@ -52,7 +61,8 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
             return (
               <span
                 key={i}
-                onClick={() => onSelectSlot(i)}
+                onPointerDown={stop}
+                onPointerUp={(e) => { stop(e); onSelectSlot(i); }}
                 style={{
                   cursor: 'pointer', padding: '1px 5px', margin: '0 1px',
                   color: val ? '#f4e6c9' : 'rgba(230,221,203,.35)',
@@ -69,11 +79,31 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(230,221,203,.35)' }}>
-          {/* the same slow ember as the kindling-picker screen — no reason
-              this part should feel any more hurried than that one */}
+        {/* no "slot 1 of 3, take your time" caption — the same slow ember
+            as the kindling picker plus a row of progress dots (lit for a
+            filled blank, breathing on whichever one's live) carries it
+            instead, same as the unhurried entrance below */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0 4px' }}>
           <div aria-hidden style={{ width: 5, height: 5, borderRadius: '50%', background: '#e8a165', boxShadow: '0 0 8px 2px rgba(232,161,101,.55)', animation: 'ddGlow 4.5s ease-in-out infinite', flexShrink: 0 }} />
-          take your time · slot {Math.max(0, slotIdxs.indexOf(slot)) + 1} of {slotIdxs.length}
+          <div style={{ display: 'flex', gap: 7 }}>
+            {slotIdxs.map((idx) => {
+              const filled = picks[idx] !== undefined;
+              const isCurrent = idx === slot;
+              return (
+                <div
+                  key={idx}
+                  aria-hidden
+                  style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: filled ? '#c2a173' : 'transparent',
+                    border: `1px solid ${filled ? '#c2a173' : 'rgba(230,221,203,.28)'}`,
+                    animation: isCurrent ? 'ddGlow 2.6s ease-in-out infinite' : 'none',
+                    transition: 'background .4s ease, border-color .4s ease',
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
         {/* keyed by slot so switching blanks re-triggers the cascade below,
             instead of the option list just snapping to new text in place */}
@@ -83,7 +113,8 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
             return (
               <div
                 key={o}
-                onClick={() => onChoose(slot, o)}
+                onPointerDown={stop}
+                onPointerUp={(e) => { stop(e); onChoose(slot, o); }}
                 style={{
                   padding: '14px 15px',
                   border: `1px solid ${chosen ? 'rgba(194,161,115,.7)' : 'rgba(230,221,203,.12)'}`,
@@ -105,7 +136,8 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
 
       <div style={{ padding: '14px 24px 0', display: 'flex', gap: 10, alignItems: 'center' }}>
         <div
-          onClick={() => allPicked && onDrop()}
+          onPointerDown={stop}
+          onPointerUp={(e) => { stop(e); if (allPicked) onDrop(); }}
           style={{
             flex: 1, padding: 16, textAlign: 'center',
             border: `1px solid ${allPicked ? 'rgba(194,161,115,.85)' : 'rgba(230,221,203,.12)'}`,
@@ -116,7 +148,7 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
             transition: 'border-color .4s ease, background .4s ease, color .4s ease',
           }}
         >
-          {allPicked ? `Drop into ${b.name}` : 'Still deciding'}
+          Drop into {b.name}
         </div>
       </div>
     </div>
