@@ -102,11 +102,11 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
       });
     }
     // ground pebbles — small rounded stones in a randomized warm-gray/tan
-    // palette, each with its own lit-side highlight so they read as
-    // rounded pebbles rather than flat dark stones
+    // palette, each with its own lit-side gradient so they read as rounded
+    // pebbles rather than flat dark stones
     for (let i = 0; i < 58; i++) {
       st.pebbles.push({
-        x: Math.random(), y: Math.random(), r: 0.7 + Math.random() * 2.1,
+        x: Math.random(), y: Math.random(), r: 1.1 + Math.random() * 2.6,
         hue: Math.random(), rot: Math.random() * 6.28,
       });
     }
@@ -764,25 +764,35 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     ctx.lineWidth = 0.8 + tuft.hue * 0.6;
     ctx.beginPath(); ctx.moveTo(tuft.x * w, gy); ctx.lineTo(tuft.x * w + tuft.l + sway, gy - tuft.h); ctx.stroke();
   }
-  // pebbles — a randomized warm-gray/tan palette with a small lit-side
-  // highlight (same trick as the fire-pit rocks) so they read as rounded
-  // pebbles rather than flat dark stones
+  // pebbles — each shaded with its own light-to-dark diagonal gradient (the
+  // same idea as the fire-pit rocks below) plus a soft contact shadow, so
+  // even at a couple pixels across they read as rounded volumes resting on
+  // the ground rather than flat pale dots
   for (const pb of st.pebbles) {
     const pbBank = bankYAt(pb.x, fill, st.t, fy);
     const px = pb.x * w, py = pbBank + 6 + pb.y * (h - pbBank) * 0.9;
     const d = 1 - Math.min(1, Math.abs(px - fx) / (w * 0.6));
     const warm = pb.hue > 0.5;
+    const rx = pb.r * 1.5, ry = pb.r;
+    const base = warm
+      ? [120 + pb.hue * 40, 96 + pb.hue * 30, 70 + pb.hue * 20]
+      : [80 + pb.hue * 30, 76 + pb.hue * 28, 72 + pb.hue * 26];
+    const a = (0.4 + 0.45 * d).toFixed(3);
+
+    ctx.globalAlpha = 0.2 + 0.3 * d;
+    ctx.fillStyle = 'rgba(4,3,3,0.9)';
+    ctx.beginPath(); ctx.ellipse(px, py + ry * 0.55, rx * 0.9, ry * 0.42, 0, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 1;
+
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(pb.rot);
-    ctx.fillStyle = warm
-      ? `rgba(${120 + pb.hue * 40},${96 + pb.hue * 30},${70 + pb.hue * 20},${(0.3 + 0.4 * d).toFixed(3)})`
-      : `rgba(${80 + pb.hue * 30},${76 + pb.hue * 28},${72 + pb.hue * 26},${(0.3 + 0.4 * d).toFixed(3)})`;
-    ctx.beginPath(); ctx.ellipse(0, 0, pb.r * 1.5, pb.r, 0, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = 0.12 + 0.22 * d;
-    ctx.fillStyle = 'rgba(240,190,130,1)';
-    ctx.beginPath(); ctx.ellipse(-pb.r * 0.35, -pb.r * 0.3, pb.r * 0.55, pb.r * 0.36, 0, 0, 6.2832); ctx.fill();
-    ctx.globalAlpha = 1;
+    const lit = ctx.createLinearGradient(-rx * 0.6, -ry * 0.7, rx * 0.6, ry * 0.7);
+    lit.addColorStop(0, `rgba(${Math.min(255, base[0] + 90)},${Math.min(255, base[1] + 78)},${Math.min(255, base[2] + 60)},${a})`);
+    lit.addColorStop(0.5, `rgba(${base[0].toFixed(0)},${base[1].toFixed(0)},${base[2].toFixed(0)},${a})`);
+    lit.addColorStop(1, `rgba(${(base[0] * 0.42).toFixed(0)},${(base[1] * 0.42).toFixed(0)},${(base[2] * 0.42).toFixed(0)},${a})`);
+    ctx.fillStyle = lit;
+    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, 6.2832); ctx.fill();
     ctx.restore();
   }
   ctx.globalAlpha = 1;
