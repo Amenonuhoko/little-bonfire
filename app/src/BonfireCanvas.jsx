@@ -28,7 +28,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     // is readable with its own real content, not a generic placeholder
     addEmber(kindlingId, text) {
       if (!s.current) return;
-      s.current.embers.push(mkEmber(s.current, kindlingId, true, text));
+      s.current.embers.push(mkEmber(s.current, kindlingId, text));
     },
     removeOldestEmber() {
       if (s.current && s.current.embers.length) s.current.embers.shift();
@@ -37,17 +37,16 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
       if (!s.current) return;
       s.current.stars.push({ x: Math.random(), y: 0.2 + Math.random() * 0.5, likes: 18, b: 0.55, tw: 0 });
     },
-    // finds the ember (if any) currently rendered near (px, py) in
-    // canvas-local coordinates — used to let a tap read it in place. Every
-    // ember represents a real simulated message, so every ember qualifies.
+    // finds the ember (if any) whose fixed clickable zone contains
+    // (px, py), in canvas-local coordinates. Tested against the ember's
+    // rest point, not its swaying on-screen position, so the tap target
+    // stays put even while the ember visibly drifts within that zone.
     hitTestEmber(px, py) {
       const st = s.current;
       if (!st || !st.w) return null;
       let best = null, bestD = EMBER_TAP_RADIUS;
       for (const e of st.embers) {
-        const x = e.x * st.w + Math.sin(st.t * e.sp + e.ph) * e.ax;
-        const y = e.y + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
-        const d = Math.hypot(px - x, py - y);
+        const d = Math.hypot(px - e.x * st.w, py - e.y);
         if (d < bestD) { bestD = d; best = e; }
       }
       return best ? { id: best.id, name: best.name, color: best.c, text: best.text } : null;
@@ -89,7 +88,7 @@ const BonfireCanvas = forwardRef(function BonfireCanvas({ screen, sky, revealed,
     // one ember per actually-occupied slot — every ember is readable,
     // there's nothing decorative floating out there without a real message
     for (const id of KINDLING_IDS) {
-      for (let i = 0; i < INITIAL_USED[id]; i++) st.embers.push(mkEmber(st, id, false));
+      for (let i = 0; i < INITIAL_USED[id]; i++) st.embers.push(mkEmber(st, id));
     }
     for (let i = 0; i < 20; i++) st.sparks.push(mkSpark(true));
     for (let i = 0; i < 5; i++) st.smoke.push(mkSmoke(true));
@@ -175,7 +174,7 @@ function flameHalfWidthAt(y, fy) {
 // the kindling's sample messages is cycled in. Each gets a stable id so the
 // canvas can highlight the specific one currently being read.
 let emberSeq = 0;
-function mkEmber(st, kindlingId, fresh, text) {
+function mkEmber(st, kindlingId, text) {
   const h = st.h || 860, w = st.w || 402;
   const fy = h * 0.68;
   let ex, ey, tries = 0;
@@ -200,9 +199,12 @@ function mkEmber(st, kindlingId, fresh, text) {
     c: KINDLING[kindlingId].color,
     name: KINDLING[kindlingId].name,
     text: text || live[emberId % live.length].t,
-    x: fresh ? 0.5 + (Math.random() - 0.5) * 0.1 : Math.max(0.04, Math.min(0.96, ex)),
-    y: fresh ? fy - 110 : ey,
-    ax: 6 + Math.random() * 18, ay: 5 + Math.random() * 16,
+    x: Math.max(0.04, Math.min(0.96, ex)),
+    y: ey,
+    // sway amplitude is kept well under EMBER_TAP_RADIUS so the ember's
+    // drift always stays inside its own tap zone, never wandering out of
+    // the fixed spot a tap actually registers against
+    ax: 8 + Math.random() * 8, ay: 6 + Math.random() * 6,
     sp: 0.05 + Math.random() * 0.1, ph: Math.random() * 6.28,
     r: 1.5 + Math.random() * 2, a: 0.55 + Math.random() * 0.4,
   };
@@ -645,12 +647,14 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 
-  // embers: live messages, floating in place — a touch bolder once the fire
-  // has been touched once, rewarding the tap with a clearer ember field
+  // embers: live messages, drifting gently in place within a fixed tap
+  // zone — a touch bolder once the fire has been touched once, rewarding
+  // the tap with a clearer ember field
   const emberBoost = revealed ? 1.55 : 1;
   for (const e of st.embers) {
-    const x = e.x * w + Math.sin(st.t * e.sp + e.ph) * e.ax;
-    const y = e.y + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
+    const bx = e.x * w, by = e.y;
+    const x = bx + Math.sin(st.t * e.sp + e.ph) * e.ax;
+    const y = by + Math.cos(st.t * e.sp * 0.78 + e.ph * 1.6) * e.ay;
     const a = Math.min(1, e.a * (0.62 + 0.38 * Math.sin(st.t * 0.42 + e.ph)) * emberBoost);
     const r = e.r * emberBoost;
     ctx.globalAlpha = Math.max(0, a);
@@ -659,12 +663,12 @@ function draw(st, screen, sky, revealed, used, activeEmberId) {
     ctx.globalAlpha = Math.max(0, a * (revealed ? 0.22 : 0.14));
     ctx.beginPath(); ctx.arc(x, y, r * 3.8, 0, 6.2832); ctx.fill();
 
-    // a faint dashed guide showing exactly how far a tap can land and
-    // still count — a hint, not a decoration, so it stays quiet
+    // a faint dashed guide around the ember's fixed rest point — exactly
+    // where a tap lands and still counts, regardless of the drift above
     if (revealed) {
       ctx.globalAlpha = Math.max(0, a * 0.16);
       ctx.strokeStyle = e.c; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
-      ctx.beginPath(); ctx.arc(x, y, EMBER_TAP_RADIUS, 0, 6.2832); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, by, EMBER_TAP_RADIUS, 0, 6.2832); ctx.stroke();
       ctx.setLineDash([]);
     }
 
