@@ -1,12 +1,5 @@
 import { KINDLING_IDS, KINDLING, totalFor } from '../data';
 
-function counterText(id, used) {
-  const total = totalFor(id);
-  if (total === 0) return 'UNBOUNDED';
-  const left = total - used[id];
-  return left === 0 ? `READ-ONLY · 0/${total}` : `${left}/${total} SLOTS`;
-}
-
 // Grace has no cap, so — same as the canvas's shoreline mapping — its
 // fill reads against a soft reference instead of a hard total.
 function fillFrac(id, used, total) {
@@ -35,7 +28,6 @@ export default function KindlingScreen({ mode, used, activeKindling, onBack, onP
           const b = KINDLING[id];
           const total = totalFor(id);
           const full = total > 0 && used[id] >= total;
-          const unbounded = total === 0;
           const isActive = id === activeKindling;
           const disabled = mode === 'drop' && full;
           const frac = fillFrac(id, used, total);
@@ -60,12 +52,7 @@ export default function KindlingScreen({ mode, used, activeKindling, onBack, onP
                   transition: 'width .4s ease',
                 }}
               />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ fontFamily: "'Young Serif',serif", fontSize: 19.5, color: '#e6ddcb', letterSpacing: '.01em' }}>{b.name}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: '.08em', color: full ? 'rgba(160,95,75,0.95)' : unbounded ? 'rgba(203,176,131,0.8)' : 'rgba(230,221,203,0.5)' }}>
-                  {counterText(id, used)}
-                </div>
-              </div>
+              <div style={{ position: 'relative', fontFamily: "'Young Serif',serif", fontSize: 19.5, color: '#e6ddcb', letterSpacing: '.01em' }}>{b.name}</div>
               <div style={{ position: 'relative', fontFamily: 'Newsreader,serif', fontSize: 13.5, lineHeight: 1.45, color: 'rgba(230,221,203,.58)' }}>{b.blurb}</div>
             </div>
           );
