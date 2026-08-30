@@ -1,4 +1,5 @@
 import { KINDLING } from '../data';
+import TemplateRolodex from './TemplateRolodex';
 
 export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplate, picks, slot, onBack, onSelectSlot, onChoose, onDrop }) {
   const b = KINDLING[kindlingId];
@@ -26,30 +27,16 @@ export default function ComposeScreen({ kindlingId, templateIdx, onSelectTemplat
         </div>
       </div>
 
-      {/* the template wheel — scroll through this kindling's flavors before filling one in */}
-      <div style={{ padding: '0 0 12px' }}>
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 24px 4px', WebkitOverflowScrolling: 'touch' }}>
-          {b.templates.map((t, i) => {
-            const active = i === templateIdx;
-            return (
-              <div
-                key={t.key}
-                onPointerDown={stop}
-                onPointerUp={(e) => { stop(e); if (i !== templateIdx) onSelectTemplate(i); }}
-                style={{
-                  flex: '0 0 auto', padding: '8px 13px', borderRadius: 999, whiteSpace: 'nowrap',
-                  fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, letterSpacing: '.05em',
-                  border: `1px solid ${active ? b.color : 'rgba(230,221,203,.16)'}`,
-                  background: active ? `${b.color}26` : 'rgba(230,221,203,.03)',
-                  color: active ? '#f4e6c9' : 'rgba(230,221,203,.55)',
-                  cursor: 'pointer', transition: 'border-color .35s ease, background .35s ease, color .35s ease',
-                }}
-              >
-                {t.label}
-              </div>
-            );
-          })}
-        </div>
+      {/* the template rolodex — roll through this kindling's flavors before
+          filling one in; most-likely flavor loads first, rarer ones further
+          down the reel */}
+      <div style={{ padding: '0 0 6px' }}>
+        <TemplateRolodex
+          templates={b.templates}
+          activeIdx={templateIdx}
+          accentColor={b.color}
+          onSelect={onSelectTemplate}
+        />
       </div>
 
       <div style={{ padding: '0 24px', borderTop: '1px solid rgba(230,221,203,.1)', borderBottom: '1px solid rgba(230,221,203,.1)' }}>
