@@ -28,6 +28,30 @@ export const KINDLING = {
     blurb: "You did the thing you said you wouldn't.",
     templates: [
       {
+        key: 'just-this-once',
+        label: 'Just this once',
+        parts: [
+          { lit: 'I told myself it was the exception. ' },
+          { opts: ["Just this once, because of the week I'd had.", "Just this once, since no one would know the difference.", "Just this once, because I'd earned a break from myself.", "Just this once, and I almost believed it.", "Just this once — the same sentence as last time.", "Just this once, because the rule felt cruel that day."] },
+          { lit: ' ' },
+          { opts: ["The exception took less convincing than I expected.", "It didn't feel like an exception once I was in it.", "I built the whole excuse before I'd even decided.", "The reasoning fell apart about ten minutes in.", "I heard myself say it and didn't believe it either.", "It felt reasonable right up until it didn't."] },
+          { lit: ' ' },
+          { opts: ["Every rule I've broken started with that sentence.", "I know there's no such thing as just once.", "Tomorrow the exception becomes the rule again, quietly.", "I'm not even sure who I was arguing with.", "The exception is doing a lot of work these days.", "I'll retire the phrase right after I use it once more."] },
+        ],
+      },
+      {
+        key: 'autopilot',
+        label: 'Autopilot',
+        parts: [
+          { lit: "I didn't decide to. I just " },
+          { opts: ["drifted into it the way water finds a crack.", "was doing it before I noticed I'd started.", "went through the motions like they were muscle memory.", "ended up there without choosing the route.", "noticed my hands were already doing it.", "skipped the part where I usually talk myself out of it."] },
+          { lit: ' ' },
+          { opts: ["The decision happened somewhere I wasn't paying attention.", "I only caught up to myself halfway through.", "It's scarier than choosing it on purpose, somehow.", "Autopilot doesn't ask permission.", "I've apparently been rehearsing this without meaning to.", "The absence of a decision felt like its own kind of decision."] },
+          { lit: ' ' },
+          { opts: ["I need to start paying attention to my own hands.", "Not deciding is still a kind of choosing, I know.", "I want to blame the autopilot. I built it, though.", "Next time I'll notice sooner. Maybe.", "It's unsettling, not being the one driving.", "I'm going to need a better warning system than guilt."] },
+        ],
+      },
+      {
         key: 'relapse',
         label: 'Relapse',
         parts: [
@@ -52,6 +76,18 @@ export const KINDLING = {
         ],
       },
       {
+        key: 'broken-promise',
+        label: 'Broken promise',
+        parts: [
+          { lit: 'I promised ' },
+          { opts: ["someone who believed me too easily", "the person it would hurt the most", "someone who'd already forgiven me for this once", "the one person who never asks twice", "someone who trusted the promise more than they trusted me", "a version of someone I don't get to keep disappointing"] },
+          { lit: ' I wouldn’t. I did. ' },
+          { opts: ["I haven't figured out how to tell them yet.", "They'll find out the way they always do — not from me.", "I rehearsed the apology before I'd even finished doing it.", "Some promises cost more to break the second time.", "I keep the guilt closer than the reason I did it.", "It wasn't about them. It still landed on them."] },
+          { lit: ' ' },
+          { opts: ["Trust doesn't come back at the same price it left.", "I'd rather they were angry than quietly disappointed.", "I'm the reason the bar keeps getting lower.", "Sorry doesn't undo the second time.", "I know what this one costs. I did it anyway.", "They deserved the version of me that keeps promises."] },
+        ],
+      },
+      {
         key: 'secret',
         label: 'Secret',
         parts: [
@@ -61,18 +97,6 @@ export const KINDLING = {
           { opts: ["The secrecy was almost the whole point.", "Being unseen made it feel like it didn't count.", "I've gotten good at this kind of quiet.", "Some part of me wanted to get caught.", "It's lonelier than the thing itself.", "I don't know who I'm protecting anymore — them or me."] },
           { lit: ' ' },
           { opts: ["Nobody knows. That's not the same as nobody's hurt.", "I'll carry this one alone, same as always.", "The secret weighs more than the thing did.", "I almost told someone. Almost.", "It's easier to hide than to stop.", "One day the math on this stops working."] },
-        ],
-      },
-      {
-        key: 'just-this-once',
-        label: 'Just this once',
-        parts: [
-          { lit: 'I told myself it was the exception. ' },
-          { opts: ["Just this once, because of the week I'd had.", "Just this once, since no one would know the difference.", "Just this once, because I'd earned a break from myself.", "Just this once, and I almost believed it.", "Just this once — the same sentence as last time.", "Just this once, because the rule felt cruel that day."] },
-          { lit: ' ' },
-          { opts: ["The exception took less convincing than I expected.", "It didn't feel like an exception once I was in it.", "I built the whole excuse before I'd even decided.", "The reasoning fell apart about ten minutes in.", "I heard myself say it and didn't believe it either.", "It felt reasonable right up until it didn't."] },
-          { lit: ' ' },
-          { opts: ["Every rule I've broken started with that sentence.", "I know there's no such thing as just once.", "Tomorrow the exception becomes the rule again, quietly.", "I'm not even sure who I was arguing with.", "The exception is doing a lot of work these days.", "I'll retire the phrase right after I use it once more."] },
         ],
       },
       {
@@ -97,30 +121,6 @@ export const KINDLING = {
           { opts: ["I thought I'd outgrown this one.", "It knew exactly where I keep the spare key.", "I recognized the pattern three moves too late.", "Some habits just wait. They don't die.", "It felt like putting on old clothes that still fit.", "I didn't fight it as hard as I should have."] },
           { lit: ' ' },
           { opts: ["Growth apparently isn't a straight line. Noted, again.", "I'll introduce myself to the better version tomorrow.", "It's humbling, meeting yourself at your worst, unannounced.", "I'm not who I was. I'm also, apparently, still him.", "The old self left before I could ask it to stay gone.", "I'm keeping the receipt on this one, for later."] },
-        ],
-      },
-      {
-        key: 'broken-promise',
-        label: 'Broken promise',
-        parts: [
-          { lit: 'I promised ' },
-          { opts: ["someone who believed me too easily", "the person it would hurt the most", "someone who'd already forgiven me for this once", "the one person who never asks twice", "someone who trusted the promise more than they trusted me", "a version of someone I don't get to keep disappointing"] },
-          { lit: ' I wouldn’t. I did. ' },
-          { opts: ["I haven't figured out how to tell them yet.", "They'll find out the way they always do — not from me.", "I rehearsed the apology before I'd even finished doing it.", "Some promises cost more to break the second time.", "I keep the guilt closer than the reason I did it.", "It wasn't about them. It still landed on them."] },
-          { lit: ' ' },
-          { opts: ["Trust doesn't come back at the same price it left.", "I'd rather they were angry than quietly disappointed.", "I'm the reason the bar keeps getting lower.", "Sorry doesn't undo the second time.", "I know what this one costs. I did it anyway.", "They deserved the version of me that keeps promises."] },
-        ],
-      },
-      {
-        key: 'autopilot',
-        label: 'Autopilot',
-        parts: [
-          { lit: "I didn't decide to. I just " },
-          { opts: ["drifted into it the way water finds a crack.", "was doing it before I noticed I'd started.", "went through the motions like they were muscle memory.", "ended up there without choosing the route.", "noticed my hands were already doing it.", "skipped the part where I usually talk myself out of it."] },
-          { lit: ' ' },
-          { opts: ["The decision happened somewhere I wasn't paying attention.", "I only caught up to myself halfway through.", "It's scarier than choosing it on purpose, somehow.", "Autopilot doesn't ask permission.", "I've apparently been rehearsing this without meaning to.", "The absence of a decision felt like its own kind of decision."] },
-          { lit: ' ' },
-          { opts: ["I need to start paying attention to my own hands.", "Not deciding is still a kind of choosing, I know.", "I want to blame the autopilot. I built it, though.", "Next time I'll notice sooner. Maybe.", "It's unsettling, not being the one driving.", "I'm going to need a better warning system than guilt."] },
         ],
       },
       {
@@ -185,6 +185,18 @@ export const KINDLING = {
         ],
       },
       {
+        key: 'discovered-late',
+        label: 'Discovered late',
+        parts: [
+          { lit: 'It had been broken a while before I noticed. ' },
+          { opts: ["Everything looked fine from where I was standing.", "I'd stopped checking, which is its own kind of blame.", "It broke quietly enough to hide from me for weeks.", "I was looking somewhere else when it happened.", "By the time I saw it, it had already settled into broken.", "Nobody thought to tell me until it was old news."] },
+          { lit: ' I thought ' },
+          { opts: ["no news meant it was fine.", "I would've felt it if something changed.", "someone would have said something sooner.", "it takes longer than that to fall apart.", "I was paying enough attention to catch it.", "the silence meant everything was holding."] },
+          { lit: ' ' },
+          { opts: ["I lost time I didn't know I was losing.", "There's no fixing the part where I wasn't looking.", "I'm angrier at the delay than the break itself.", "It's strange, grieving something that ended before you knew it started ending.", "I'll check more carefully from now on. Too late helps, some.", "The gap between broken and noticed is its own kind of loss."] },
+        ],
+      },
+      {
         key: 'bad-luck',
         label: 'Bad luck',
         parts: [
@@ -194,18 +206,6 @@ export const KINDLING = {
           { opts: ["I was due for something going right instead.", "luck evened out eventually.", "I'd get some warning even from chance.", "it couldn't happen twice to the same person.", "fairness had something to do with any of this.", "I was owed better timing than that."] },
           { lit: ' ' },
           { opts: ["There's nothing to learn from bad luck except that it exists.", "I wanted someone to blame. Anger needs a direction.", "It's harder to grieve something nobody chose to break.", "I keep looking for the lesson. Maybe there isn't one.", "Some things really are just unlucky. This was one.", "I'm allowed to be upset even without a villain."] },
-        ],
-      },
-      {
-        key: 'failed-by-a-system',
-        label: 'Failed by a system',
-        parts: [
-          { lit: 'Something bigger than me let it fail. ' },
-          { opts: ["The process was built to lose things like this.", "Nobody in charge was actually paying attention.", "It fell through a gap that was always going to be there.", "The rules protected everyone except the person they were for.", "I did everything right and it still wasn't enough.", "It broke exactly where the paperwork stopped caring."] },
-          { lit: ' I thought ' },
-          { opts: ["the system existed to catch things like this.", "someone was accountable if it went wrong.", "following the process would be enough.", "there'd be a person, not just a policy.", "doing it right would matter more than it did.", "it was built for people, not just for itself."] },
-          { lit: ' ' },
-          { opts: ["I'm angrier at the shrug than at the failure itself.", "Nobody apologized, because nobody had to.", "It's hard to be furious at something with no face.", "I did my part. The system didn't do its.", "I'll keep the paper trail, for whatever that's worth.", "Some things break because they were never built to hold."] },
         ],
       },
       {
@@ -221,15 +221,15 @@ export const KINDLING = {
         ],
       },
       {
-        key: 'discovered-late',
-        label: 'Discovered late',
+        key: 'failed-by-a-system',
+        label: 'Failed by a system',
         parts: [
-          { lit: 'It had been broken a while before I noticed. ' },
-          { opts: ["Everything looked fine from where I was standing.", "I'd stopped checking, which is its own kind of blame.", "It broke quietly enough to hide from me for weeks.", "I was looking somewhere else when it happened.", "By the time I saw it, it had already settled into broken.", "Nobody thought to tell me until it was old news."] },
+          { lit: 'Something bigger than me let it fail. ' },
+          { opts: ["The process was built to lose things like this.", "Nobody in charge was actually paying attention.", "It fell through a gap that was always going to be there.", "The rules protected everyone except the person they were for.", "I did everything right and it still wasn't enough.", "It broke exactly where the paperwork stopped caring."] },
           { lit: ' I thought ' },
-          { opts: ["no news meant it was fine.", "I would've felt it if something changed.", "someone would have said something sooner.", "it takes longer than that to fall apart.", "I was paying enough attention to catch it.", "the silence meant everything was holding."] },
+          { opts: ["the system existed to catch things like this.", "someone was accountable if it went wrong.", "following the process would be enough.", "there'd be a person, not just a policy.", "doing it right would matter more than it did.", "it was built for people, not just for itself."] },
           { lit: ' ' },
-          { opts: ["I lost time I didn't know I was losing.", "There's no fixing the part where I wasn't looking.", "I'm angrier at the delay than the break itself.", "It's strange, grieving something that ended before you knew it started ending.", "I'll check more carefully from now on. Too late helps, some.", "The gap between broken and noticed is its own kind of loss."] },
+          { opts: ["I'm angrier at the shrug than at the failure itself.", "Nobody apologized, because nobody had to.", "It's hard to be furious at something with no face.", "I did my part. The system didn't do its.", "I'll keep the paper trail, for whatever that's worth.", "Some things break because they were never built to hold."] },
         ],
       },
       {
@@ -270,17 +270,17 @@ export const KINDLING = {
     blurb: "Waiting on something you can't control.",
     templates: [
       {
-        key: 'medical-wait',
-        label: 'Medical wait',
+        key: 'person-wait',
+        label: 'Person wait',
         parts: [
           { lit: '' },
-          { opts: ['Three days', 'A week and a half', 'Since Monday', 'Eleven days now', 'Since the appointment', 'Longer than they said it would take'] },
-          { lit: ' since the test. Still waiting on ' },
-          { opts: ["the results to say something I can live with.", "a call from a number I don't recognize yet.", "someone to tell me what the scan actually means.", "the follow-up that keeps getting pushed back.", 'a doctor to stop saying "we\'ll see."', 'permission to stop assuming the worst.'] },
+          { opts: ['Four days', 'A week of silence', 'Since the last text', 'Since they said they’d call', 'Two weeks now', 'Since "talk soon"'] },
+          { lit: ' since I heard from ' },
+          { opts: ["someone who used to answer faster than this.", "the one person whose silence actually means something.", "someone I'm trying not to read too much into.", "a person who knows exactly how loud their silence is.", 'whoever\'s on the other end of "I\'ll let you know."', "someone who owes me an answer, not an explanation."] },
           { lit: ' I ' },
-          { opts: ["kept my phone on loud, even at night.", "rehearsed both versions of the news.", "went to work like it wasn't happening.", "stopped Googling, then started again.", "told fewer people than I wanted to.", "kept the appointment card where I'd see it."] },
+          { opts: ["reread the last message more than once.", "didn't send the follow-up I drafted three times.", "told myself busy and unwilling look the same from here.", "kept my phone closer than usual.", "decided not to be the one who checks first. Then checked.", "practiced what I'd say either way this goes."] },
           { lit: ' ' },
-          { opts: ["I'm still waiting.", "It wasn't what I braced for, either direction.", "The waiting is its own diagnosis, some days.", "I made peace with not knowing, mostly.", "Someone else got the call I was expecting.", "I'll take the news over the not-knowing at this point."] },
+          { opts: ["Silence is an answer. I just don't like this one.", "I'd rather hear something bad than nothing at all.", "Still nothing. I'm getting used to the shape of it.", "They came through, eventually. Later than I needed.", "I stopped waiting before they stopped being quiet.", "Some silences you learn to read like a language."] },
         ],
       },
       {
@@ -298,34 +298,6 @@ export const KINDLING = {
         ],
       },
       {
-        key: 'person-wait',
-        label: 'Person wait',
-        parts: [
-          { lit: '' },
-          { opts: ['Four days', 'A week of silence', 'Since the last text', 'Since they said they’d call', 'Two weeks now', 'Since "talk soon"'] },
-          { lit: ' since I heard from ' },
-          { opts: ["someone who used to answer faster than this.", "the one person whose silence actually means something.", "someone I'm trying not to read too much into.", "a person who knows exactly how loud their silence is.", 'whoever\'s on the other end of "I\'ll let you know."', "someone who owes me an answer, not an explanation."] },
-          { lit: ' I ' },
-          { opts: ["reread the last message more than once.", "didn't send the follow-up I drafted three times.", "told myself busy and unwilling look the same from here.", "kept my phone closer than usual.", "decided not to be the one who checks first. Then checked.", "practiced what I'd say either way this goes."] },
-          { lit: ' ' },
-          { opts: ["Silence is an answer. I just don't like this one.", "I'd rather hear something bad than nothing at all.", "Still nothing. I'm getting used to the shape of it.", "They came through, eventually. Later than I needed.", "I stopped waiting before they stopped being quiet.", "Some silences you learn to read like a language."] },
-        ],
-      },
-      {
-        key: 'recovery-wait',
-        label: 'Recovery wait',
-        parts: [
-          { lit: '' },
-          { opts: ['Three weeks', 'Since the surgery', 'A month of this', 'Since the worst of it passed', 'Since they said "give it time"', 'Longer than the estimate'] },
-          { lit: ' since ' },
-          { opts: ["a body that's taking its time about it.", "someone I love, slower than I'd like.", "the version of myself that isn't tired all the time.", "a wound that looks fine and doesn't feel it.", 'whatever "better" is supposed to feel like.', "something that isn't going to heal on my schedule."] },
-          { lit: ' started healing. I ' },
-          { opts: ["measured progress in days I could stand up straight.", 'stopped asking "how much longer," out loud at least.', "learned patience I didn't know I had.", "did the exercises even on the days I didn't believe in them.", "stayed close by, in case being close by helped.", "kept track of the good days so I wouldn't forget them."] },
-          { lit: ' ' },
-          { opts: ["Healing doesn't move in a straight line. Nobody warns you.", "Better, but not yet done. I'll take better.", "Some days feel like healing. Some days feel like waiting for it.", "It's slower than I wanted and faster than I feared.", "I'm learning to measure this in something other than speed.", "Still healing. Still here for it."] },
-        ],
-      },
-      {
         key: 'silence-wait',
         label: 'Silence',
         parts: [
@@ -337,6 +309,32 @@ export const KINDLING = {
           { opts: ["checked read receipts more than I'll admit.", "drafted a follow-up and deleted it twice.", "told myself no news is neutral, not bad.", "kept busy specifically so I wouldn't check.", "reread what I sent, looking for a reason.", "decided silence says less about me than I think it does."] },
           { lit: ' ' },
           { opts: ["I'm still waiting on the other side of send.", "The quiet is loud, some days.", "I'll stop checking eventually. Not yet, though.", "They answered. It wasn't what the silence had prepared me for.", "Some sent messages just live in the waiting forever.", "I've made a kind of peace with unanswered."] },
+        ],
+      },
+      {
+        key: 'medical-wait',
+        label: 'Medical wait',
+        parts: [
+          { lit: '' },
+          { opts: ['Three days', 'A week and a half', 'Since Monday', 'Eleven days now', 'Since the appointment', 'Longer than they said it would take'] },
+          { lit: ' since the test. Still waiting on ' },
+          { opts: ["the results to say something I can live with.", "a call from a number I don't recognize yet.", "someone to tell me what the scan actually means.", "the follow-up that keeps getting pushed back.", 'a doctor to stop saying "we\'ll see."', 'permission to stop assuming the worst.'] },
+          { lit: ' I ' },
+          { opts: ["kept my phone on loud, even at night.", "rehearsed both versions of the news.", "went to work like it wasn't happening.", "stopped Googling, then started again.", "told fewer people than I wanted to.", "kept the appointment card where I'd see it."] },
+          { lit: ' ' },
+          { opts: ["I'm still waiting.", "It wasn't what I braced for, either direction.", "The waiting is its own diagnosis, some days.", "I made peace with not knowing, mostly.", "Someone else got the call I was expecting.", "I'll take the news over the not-knowing at this point."] },
+        ],
+      },
+      {
+        key: 'open-ended',
+        label: 'Open-ended',
+        parts: [
+          { lit: 'No date. Just ' },
+          { opts: ["waiting, indefinitely, for something with no calendar.", "whenever it happens, if it happens.", "a someday I've stopped trying to pin down.", "the absence of a timeline, which is its own weight.", "an answer that isn't scheduled to arrive.", "however long it takes, which nobody will say."] },
+          { lit: ' I ' },
+          { opts: ["asked for a timeline and got a shrug instead.", "stopped asking when, and started just living around it.", "built a life that has room for the wait in it.", "gave up trying to plan past the not-knowing.", 'learned to stop asking "how much longer."', "made the uncertainty part of the routine instead of the exception."] },
+          { lit: ' ' },
+          { opts: ["There's no countdown to distract me from this one.", "Open-ended is its own kind of hard.", "I've stopped expecting an end date and started expecting nothing.", "Some waits don't come with a finish line.", "I'm learning to live in it instead of just enduring it.", "Maybe today. Maybe not for years. I don't get to know."] },
         ],
       },
       {
@@ -354,15 +352,17 @@ export const KINDLING = {
         ],
       },
       {
-        key: 'open-ended',
-        label: 'Open-ended',
+        key: 'recovery-wait',
+        label: 'Recovery wait',
         parts: [
-          { lit: 'No date. Just ' },
-          { opts: ["waiting, indefinitely, for something with no calendar.", "whenever it happens, if it happens.", "a someday I've stopped trying to pin down.", "the absence of a timeline, which is its own weight.", "an answer that isn't scheduled to arrive.", "however long it takes, which nobody will say."] },
-          { lit: ' I ' },
-          { opts: ["asked for a timeline and got a shrug instead.", "stopped asking when, and started just living around it.", "built a life that has room for the wait in it.", "gave up trying to plan past the not-knowing.", 'learned to stop asking "how much longer."', "made the uncertainty part of the routine instead of the exception."] },
+          { lit: '' },
+          { opts: ['Three weeks', 'Since the surgery', 'A month of this', 'Since the worst of it passed', 'Since they said "give it time"', 'Longer than the estimate'] },
+          { lit: ' since ' },
+          { opts: ["a body that's taking its time about it.", "someone I love, slower than I'd like.", "the version of myself that isn't tired all the time.", "a wound that looks fine and doesn't feel it.", 'whatever "better" is supposed to feel like.', "something that isn't going to heal on my schedule."] },
+          { lit: ' started healing. I ' },
+          { opts: ["measured progress in days I could stand up straight.", 'stopped asking "how much longer," out loud at least.', "learned patience I didn't know I had.", "did the exercises even on the days I didn't believe in them.", "stayed close by, in case being close by helped.", "kept track of the good days so I wouldn't forget them."] },
           { lit: ' ' },
-          { opts: ["There's no countdown to distract me from this one.", "Open-ended is its own kind of hard.", "I've stopped expecting an end date and started expecting nothing.", "Some waits don't come with a finish line.", "I'm learning to live in it instead of just enduring it.", "Maybe today. Maybe not for years. I don't get to know."] },
+          { opts: ["Healing doesn't move in a straight line. Nobody warns you.", "Better, but not yet done. I'll take better.", "Some days feel like healing. Some days feel like waiting for it.", "It's slower than I wanted and faster than I feared.", "I'm learning to measure this in something other than speed.", "Still healing. Still here for it."] },
         ],
       },
       {
@@ -403,18 +403,6 @@ export const KINDLING = {
     blurb: 'Decided something, need it to hold.',
     templates: [
       {
-        key: 'boundary',
-        label: 'Boundary',
-        parts: [
-          { lit: 'I decided ' },
-          { opts: ["a person who's cost me more than they've given", "the version of events where I'm always the one who bends", "a habit of answering every single time I'm called", "the part of my time that used to go to guilt", "a relationship that only worked when I disappeared a little", "whatever kept letting the same thing happen twice"] },
-          { lit: ' doesn’t get access anymore. It’s held for ' },
-          { opts: ["longer than I thought I could manage.", "three weeks, which is a record for me.", "one uncomfortable conversation and counting.", "long enough that it's starting to feel normal.", "every single test they've thrown at it so far.", "less time than I'd like, more than I expected."] },
-          { lit: ' ' },
-          { opts: ["I keep waiting for the guilt to catch up with me. It hasn't yet.", "Boundaries don't feel like walls from the inside. They feel like relief.", "I'm allowed to protect something without explaining why.", "It's easier every time I don't cave.", "Nobody claps for this kind of decision. I'm clapping anyway.", "I said no. The sky didn't fall. Noted."] },
-        ],
-      },
-      {
         key: 'habit-change',
         label: 'Habit change',
         parts: [
@@ -427,6 +415,30 @@ export const KINDLING = {
         ],
       },
       {
+        key: 'boundary',
+        label: 'Boundary',
+        parts: [
+          { lit: 'I decided ' },
+          { opts: ["a person who's cost me more than they've given", "the version of events where I'm always the one who bends", "a habit of answering every single time I'm called", "the part of my time that used to go to guilt", "a relationship that only worked when I disappeared a little", "whatever kept letting the same thing happen twice"] },
+          { lit: ' doesn’t get access anymore. It’s held for ' },
+          { opts: ["longer than I thought I could manage.", "three weeks, which is a record for me.", "one uncomfortable conversation and counting.", "long enough that it's starting to feel normal.", "every single test they've thrown at it so far.", "less time than I'd like, more than I expected."] },
+          { lit: ' ' },
+          { opts: ["I keep waiting for the guilt to catch up with me. It hasn't yet.", "Boundaries don't feel like walls from the inside. They feel like relief.", "I'm allowed to protect something without explaining why.", "It's easier every time I don't cave.", "Nobody claps for this kind of decision. I'm clapping anyway.", "I said no. The sky didn't fall. Noted."] },
+        ],
+      },
+      {
+        key: 'truth',
+        label: 'Truth',
+        parts: [
+          { lit: 'I decided to stop lying about ' },
+          { opts: ["how I actually feel about it, even to myself.", "the parts of my life I'd been editing for everyone.", "how bad it actually got before I asked for help.", "what I actually want, instead of what's easier to say.", "who I am when nobody's managing the story.", "the thing I'd been performing being fine about."] },
+          { lit: ' ' },
+          { opts: ["The truth was heavier to say than the lie ever was.", "I told one person first, to see if I could survive it.", "It didn't fix everything. It just stopped adding to the pile.", "Saying it out loud made it real in a way I couldn't take back.", "Some relationships didn't survive the honesty. They were built on the lie.", "I practiced the sentence for weeks before I said it once."] },
+          { lit: ' ' },
+          { opts: ["I'm lighter and more exposed at the same time. Nobody tells you both happen.", "The truth cost me the version of my life built on not telling it.", "I'd rather be known and uncomfortable than hidden and safe.", "It's still hard to say. It's just no longer a lie.", "I don't know who I am without the performance yet. I'm finding out.", "Honest is harder than convenient. I chose it anyway."] },
+        ],
+      },
+      {
         key: 'exit',
         label: 'Exit',
         parts: [
@@ -436,6 +448,18 @@ export const KINDLING = {
           { opts: ["I told them before I told myself I was sure.", "Nobody talked me out of it, though a few tried.", "I gave it one more chance first. It confirmed the decision instead of changing it.", "I said it out loud to make it real.", "It took longer to decide than it did to actually go.", "I packed slower than I expected. Some part of me wasn't ready."] },
           { lit: ' ' },
           { opts: ["I don't regret it. I regret waiting as long as I did.", "Leaving felt like failure for about a week. Then it felt like air.", "Nobody warns you how much of leaving is just grief, even when it's right.", "I'm allowed to walk away from something that no longer fits.", "The door's closed. I'm not checking if it's locked.", "It cost me things I'm still adding up. Worth it, so far."] },
+        ],
+      },
+      {
+        key: 'self-worth',
+        label: 'Self-worth',
+        parts: [
+          { lit: 'I decided to stop shrinking for ' },
+          { opts: ["rooms that were never going to make space for me anyway.", "people who liked me better smaller.", "an idea of myself I inherited instead of chose.", "the comfort of people who preferred me quiet.", "anyone who needed less of me to feel okay.", "a version of politeness that cost me the whole self."] },
+          { lit: ' ' },
+          { opts: ["It felt like arrogance for the first week. It wasn't.", "I practiced taking up the space I'd been apologizing for.", "Some people left when I stopped shrinking. That was information, not a loss.", "It's uncomfortable, being visible after years of not being.", "I said what I thought and didn't immediately take it back.", "It held longer than my old habit of disappearing did."] },
+          { lit: ' ' },
+          { opts: ["I'm allowed to be as much as I actually am.", "Nobody warned me how loud quiet confidence could feel from the inside.", "I'm not sorry for the space I take up anymore. Mostly.", "It cost me people who only loved the smaller version. Worth it.", "I keep catching myself about to apologize for existing. I stop.", "This is the resolve underneath all the other ones, probably."] },
         ],
       },
       {
@@ -463,18 +487,6 @@ export const KINDLING = {
         ],
       },
       {
-        key: 'self-worth',
-        label: 'Self-worth',
-        parts: [
-          { lit: 'I decided to stop shrinking for ' },
-          { opts: ["rooms that were never going to make space for me anyway.", "people who liked me better smaller.", "an idea of myself I inherited instead of chose.", "the comfort of people who preferred me quiet.", "anyone who needed less of me to feel okay.", "a version of politeness that cost me the whole self."] },
-          { lit: ' ' },
-          { opts: ["It felt like arrogance for the first week. It wasn't.", "I practiced taking up the space I'd been apologizing for.", "Some people left when I stopped shrinking. That was information, not a loss.", "It's uncomfortable, being visible after years of not being.", "I said what I thought and didn't immediately take it back.", "It held longer than my old habit of disappearing did."] },
-          { lit: ' ' },
-          { opts: ["I'm allowed to be as much as I actually am.", "Nobody warned me how loud quiet confidence could feel from the inside.", "I'm not sorry for the space I take up anymore. Mostly.", "It cost me people who only loved the smaller version. Worth it.", "I keep catching myself about to apologize for existing. I stop.", "This is the resolve underneath all the other ones, probably."] },
-        ],
-      },
-      {
         key: 'risk',
         label: 'Risk',
         parts: [
@@ -484,18 +496,6 @@ export const KINDLING = {
           { opts: ["I didn't wait to feel ready, because ready wasn't coming.", "I told one person, so I couldn't pretend I hadn't decided.", "It's terrifying in a way that also feels like being alive.", "I gave myself a deadline so the fear couldn't stall it forever.", "I did the smallest possible version first, then the real one.", "Fear showed up right on schedule. I did it with it in the car anyway."] },
           { lit: ' ' },
           { opts: ["I don't know yet if it works. I know I tried.", "Whatever happens, I'm not the person who didn't.", "The trying is already more than most of my plans got.", 'I\'ll take "it didn\'t work" over "I never found out."', "Some decisions you only get to be proud of after you've made them.", "It's done now. Whatever comes next, at least it's not theoretical."] },
-        ],
-      },
-      {
-        key: 'truth',
-        label: 'Truth',
-        parts: [
-          { lit: 'I decided to stop lying about ' },
-          { opts: ["how I actually feel about it, even to myself.", "the parts of my life I'd been editing for everyone.", "how bad it actually got before I asked for help.", "what I actually want, instead of what's easier to say.", "who I am when nobody's managing the story.", "the thing I'd been performing being fine about."] },
-          { lit: ' ' },
-          { opts: ["The truth was heavier to say than the lie ever was.", "I told one person first, to see if I could survive it.", "It didn't fix everything. It just stopped adding to the pile.", "Saying it out loud made it real in a way I couldn't take back.", "Some relationships didn't survive the honesty. They were built on the lie.", "I practiced the sentence for weeks before I said it once."] },
-          { lit: ' ' },
-          { opts: ["I'm lighter and more exposed at the same time. Nobody tells you both happen.", "The truth cost me the version of my life built on not telling it.", "I'd rather be known and uncomfortable than hidden and safe.", "It's still hard to say. It's just no longer a lie.", "I don't know who I am without the performance yet. I'm finding out.", "Honest is harder than convenient. I chose it anyway."] },
         ],
       },
       {
@@ -524,15 +524,29 @@ export const KINDLING = {
     blurb: "A good moment you don't want to lose.",
     templates: [
       {
-        key: 'reward',
-        label: 'Reward',
+        key: 'presence',
+        label: 'Presence',
         parts: [
-          { lit: "I'd almost given up on " },
-          { opts: ["something I'd stopped letting myself want out loud.", "the thing I'd quietly stopped expecting.", "a version of good news I'd trained myself not to hope for.", "the outcome I'd already grieved not getting.", "anything going right, honestly.", 'the possibility I\'d filed under "probably not."'] },
-          { lit: ' Then ' },
-          { opts: ["it just showed up, unhurried, like it had been coming the whole time.", "the answer arrived smaller and quieter than I'd imagined.", "I found out sideways, from someone else, before it was official.", "it landed on an otherwise unremarkable day.", "the wait ended before the dread did.", "I read it twice to be sure it said what I thought."] },
+          { lit: '' },
+          { opts: ['The light', 'An old song, unexpectedly', 'The first cold morning', 'A familiar smell', "Someone's laugh, out of nowhere", 'The particular quiet of early morning'] },
+          { lit: ' on ' },
+          { opts: ['an ordinary Tuesday.', "a day I almost didn't notice was passing.", 'the drive I usually spend somewhere else in my head.', 'a day that had no reason to be memorable.', 'a walk I take on autopilot.', 'a completely unscheduled afternoon.'] },
+          { lit: ' I ' },
+          { opts: ["stopped what I was doing to just be in it.", "didn't reach for my phone, for once.", "let myself feel it instead of naming it right away.", "stood there a beat longer than made sense.", "didn't try to hold onto it, and it stayed anyway.", "noticed, which is most of the trick."] },
           { lit: ' ' },
-          { opts: ["I let myself want things again, a little more, after that.", "It's strange, being rewarded for something you'd stopped believing in.", "I didn't celebrate right away. I just sat with it.", "The relief arrived before the joy did, and that was fine too.", "I'm still getting used to good news landing on me.", "Earned or lucky, I'm not sorting that out today. I'm just glad."] },
+          { opts: ["Small. Still counts.", "I'm filing this one away for a harder day.", "Nothing happened after. That was the whole gift of it.", "I don't need it to mean more than it already did.", "That was enough, on its own, no context required.", "I almost missed it. I'm glad I didn't."] },
+        ],
+      },
+      {
+        key: 'unearned-kindness',
+        label: 'Unearned kindness',
+        parts: [
+          { lit: '' },
+          { opts: ['A stranger', 'Someone with no reason to notice me', 'Someone who owed me nothing', "A person I'll probably never see again", 'Someone having a harder week than me, somehow', 'Whoever happened to be there that day'] },
+          { lit: " did something they didn't have to. " },
+          { opts: ["It cost them something small and meant something large.", "I didn't know how to say thank you big enough for it.", "It wasn't dramatic. It was just decent, unprompted.", "I've thought about it more than they probably have.", "No one was watching. They did it anyway.", "I don't know their name. I remember exactly what they did."] },
+          { lit: ' ' },
+          { opts: ["I've been trying to pass it along since.", "It's stayed with me longer than a lot of bigger things have.", "Kindness with no angle is rarer than I want to admit.", "I want to be the version of a stranger that does that for someone else.", "It didn't fix my week. It softened it, which was enough.", "Small and unearned turned out to be exactly what I needed."] },
         ],
       },
       {
@@ -548,41 +562,15 @@ export const KINDLING = {
         ],
       },
       {
-        key: 'unearned-kindness',
-        label: 'Unearned kindness',
+        key: 'reward',
+        label: 'Reward',
         parts: [
-          { lit: '' },
-          { opts: ['A stranger', 'Someone with no reason to notice me', 'Someone who owed me nothing', "A person I'll probably never see again", 'Someone having a harder week than me, somehow', 'Whoever was working that counter that day'] },
-          { lit: " did something they didn't have to. " },
-          { opts: ["It cost them something small and meant something large.", "I didn't know how to say thank you big enough for it.", "It wasn't dramatic. It was just decent, unprompted.", "I've thought about it more than they probably have.", "No one was watching. They did it anyway.", "I don't know their name. I remember exactly what they did."] },
+          { lit: "I'd almost given up on " },
+          { opts: ["something I'd stopped letting myself want out loud.", "the thing I'd quietly stopped expecting.", "a version of good news I'd trained myself not to hope for.", "the outcome I'd already grieved not getting.", "anything going right, honestly.", 'the possibility I\'d filed under "probably not."'] },
+          { lit: ' Then ' },
+          { opts: ["it just showed up, unhurried, like it had been coming the whole time.", "the answer arrived smaller and quieter than I'd imagined.", "I found out sideways, from someone else, before it was official.", "it landed on an otherwise unremarkable day.", "the wait ended before the dread did.", "I read it twice to be sure it said what I thought."] },
           { lit: ' ' },
-          { opts: ["I've been trying to pass it along since.", "It's stayed with me longer than a lot of bigger things have.", "Kindness with no angle is rarer than I want to admit.", "I want to be the version of a stranger that does that for someone else.", "It didn't fix my week. It softened it, which was enough.", "Small and unearned turned out to be exactly what I needed."] },
-        ],
-      },
-      {
-        key: 'return',
-        label: 'Return',
-        parts: [
-          { lit: '' },
-          { opts: ["Something I'd stopped expecting", 'A person I thought I’d lost track of for good', "A feeling I hadn't had in a long time", "Someone I'd made peace with never hearing from again", 'A version of myself I missed without naming it', "Something I'd quietly stopped looking for"] },
-          { lit: ' came back, after ' },
-          { opts: ["longer than I want to admit I was counting.", "a silence I'd decided was permanent.", "enough time that I'd built a life around its absence.", "a gap I'd stopped trying to explain to people.", "years, not the weeks I used to measure it in.", "a stretch where I genuinely didn't think it would."] },
-          { lit: ' ' },
-          { opts: ["I didn't know how much room I'd made for its absence until it wasn't absent anymore.", "I'm careful with it now, the way you're careful with something you almost lost.", "It came back different, and so had I. We're figuring out the new shape.", "I don't take it for granted the second time.", "Some things you only fully appreciate after the gap.", "I let myself believe it was really back, eventually."] },
-        ],
-      },
-      {
-        key: 'presence',
-        label: 'Presence',
-        parts: [
-          { lit: '' },
-          { opts: ['The light', 'An old song, unexpectedly', 'The first cold morning', 'A familiar smell', "Someone's laugh, out of nowhere", 'The particular quiet of early morning'] },
-          { lit: ' on ' },
-          { opts: ['an ordinary Tuesday.', "a day I almost didn't notice was passing.", 'the drive I usually spend somewhere else in my head.', 'a day that had no reason to be memorable.', 'a walk I take on autopilot.', 'a completely unscheduled afternoon.'] },
-          { lit: ' I ' },
-          { opts: ["stopped what I was doing to just be in it.", "didn't reach for my phone, for once.", "let myself feel it instead of naming it right away.", "stood there a beat longer than made sense.", "didn't try to hold onto it, and it stayed anyway.", "noticed, which is most of the trick."] },
-          { lit: ' ' },
-          { opts: ["Small. Still counts.", "I'm filing this one away for a harder day.", "Nothing happened after. That was the whole gift of it.", "I don't need it to mean more than it already did.", "That was enough, on its own, no context required.", "I almost missed it. I'm glad I didn't."] },
+          { opts: ["I let myself want things again, a little more, after that.", "It's strange, being rewarded for something you'd stopped believing in.", "I didn't celebrate right away. I just sat with it.", "The relief arrived before the joy did, and that was fine too.", "I'm still getting used to good news landing on me.", "Earned or lucky, I'm not sorting that out today. I'm just glad."] },
         ],
       },
       {
@@ -607,6 +595,18 @@ export const KINDLING = {
           { opts: ["tears that surprised me with how many there were.", "a laugh I didn't see coming.", "a kind of quiet I hadn't felt in months.", "something closer to sleep than I'd had in weeks.", "a breath I didn't know I'd been holding.", "nothing dramatic. Just lighter, all at once."] },
           { lit: ' ' },
           { opts: ["I didn't know how heavy it was until it was gone.", "I'm not fixed. I'm just not carrying that particular thing anymore.", "Some release doesn't need an audience. This one didn't have one.", "I let it happen instead of managing it, for once.", "It came back a little, the next day. Less, though.", "I'm learning that letting go isn't a single moment. This was a good one, though."] },
+        ],
+      },
+      {
+        key: 'return',
+        label: 'Return',
+        parts: [
+          { lit: '' },
+          { opts: ["Something I'd stopped expecting", 'A person I thought I’d lost track of for good', "A feeling I hadn't had in a long time", "Someone I'd made peace with never hearing from again", 'A version of myself I missed without naming it', "Something I'd quietly stopped looking for"] },
+          { lit: ' came back, after ' },
+          { opts: ["longer than I want to admit I was counting.", "a silence I'd decided was permanent.", "enough time that I'd built a life around its absence.", "a gap I'd stopped trying to explain to people.", "years, not the weeks I used to measure it in.", "a stretch where I genuinely didn't think it would."] },
+          { lit: ' ' },
+          { opts: ["I didn't know how much room I'd made for its absence until it wasn't absent anymore.", "I'm careful with it now, the way you're careful with something you almost lost.", "It came back different, and so had I. We're figuring out the new shape.", "I don't take it for granted the second time.", "Some things you only fully appreciate after the gap.", "I let myself believe it was really back, eventually."] },
         ],
       },
       {
